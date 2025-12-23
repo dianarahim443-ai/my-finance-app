@@ -170,7 +170,52 @@ def main():
             m.fit(df_p)
             future = m.make_future_dataframe(periods=30)
             forecast = m.predict(future)
-            
+            elif page == "Personal Finance AI":
+        st.header("💳 Expense Intelligence & Behavioral Analysis")
+        st.markdown("Upload your transaction history to see AI-driven category insights.")
+        
+        # این همان جایی است که دکمه بارگذاری را ایجاد می‌کند
+        uploaded = st.file_uploader("Upload your CSV file (Columns: 'Description', 'Amount')", type="csv")
+        
+        if uploaded:
+            try:
+                df_user = pd.read_csv(uploaded)
+                
+                if 'Description' in df_user.columns and 'Amount' in df_user.columns:
+                    def categorize(desc):
+                        desc = str(desc).lower()
+                        if any(w in desc for w in ['amazon', 'shop', 'buy', 'store']): return 'Shopping'
+                        if any(w in desc for w in ['uber', 'taxi', 'gas', 'snapp', 'train']): return 'Transport'
+                        if any(w in desc for w in ['food', 'cafe', 'restaurant', 'pizza']): return 'Dining'
+                        if any(w in desc for w in ['rent', 'bill', 'electric', 'water']): return 'Bills'
+                        return 'Others'
+                    
+                    df_user['Category'] = df_user['Description'].apply(categorize)
+                    df_user['Amount'] = pd.to_numeric(df_user['Amount']).abs()
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.subheader("Spending Distribution")
+                        fig_pie = px.pie(df_user, values='Amount', names='Category', hole=0.4, 
+                                        template="plotly_dark", color_discrete_sequence=px.colors.sequential.Gold_r)
+                        st.plotly_chart(fig_pie, use_container_width=True)
+                    with col2:
+                        st.subheader("Top Expenses")
+                        st.table(df_user.sort_values(by='Amount', ascending=False).head(5)[['Description', 'Amount', 'Category']])
+                    
+                    st.divider()
+                    st.subheader("🤖 AI Behavioral Insight")
+                    total_spent = df_user['Amount'].sum()
+                    shopping_pct = (df_user[df_user['Category'] == 'Shopping']['Amount'].sum() / total_spent) * 100 if total_spent > 0 else 0
+                    if shopping_pct > 30:
+                        st.warning(f"AI Observation: High Shopping Spend detected ({shopping_pct:.1f}%).")
+                    else:
+                        st.success("AI Observation: Your spending pattern is highly optimized.")
+                else:
+                    st.error("CSV must contain 'Description' and 'Amount' columns.")
+            except Exception as e:
+                st.error(f"Error processing file: {e}")
+                
             fig_f = go.Figure()
             fig_f.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat'], name='AI Trend', line=dict(color='cyan')))
             fig_f.add_trace(go.Scatter(x=df_p['ds'], y=df_p['y'], name='Actual Price', mode='markers', marker=dict(size=2)))
