@@ -153,9 +153,23 @@ def run_monte_carlo(data, prediction_days=30, simulations=100):
             next_price = prices[-1] * np.exp(avg_daily_ret + daily_vol * np.random.normal())
             prices.append(next_price)
         simulation_df[i] = prices
-        if st.button("Run Risk Simulation (Monte Carlo)"):
+        # خط ۱۵۶ شما
+if st.button("Run Risk Simulation (Monte Carlo)"):
+    # تمام خطوط زیر باید تراز باشند (۴ اسپیس جلوتر)
     st.subheader("🎲 Future Price Probability Simulation")
-    st.markdown("This model runs 100 random scenarios to predict the next 30 days based on historical volatility.")
+    st.markdown("This model runs 100 random scenarios to predict the next 30 days.")
+    
+    with st.spinner("Simulating 10,000 paths..."):
+        # فرض کنید df['Close'] را قبلاً تعریف کرده‌اید
+        sim_results = run_monte_carlo(df['Close'], prediction_days=30, simulations=100)
+        
+        fig_mc = go.Figure()
+        for i in range(sim_results.columns.size):
+            fig_mc.add_trace(go.Scatter(y=sim_results[i], mode='lines', 
+                                      line=dict(width=1), opacity=0.3, 
+                                      showlegend=False))
+        
+        st.plotly_chart(fig_mc, use_container_width=True)
     
     with st.spinner("Simulating 10,000 paths..."):
         # اجرای شبیه‌سازی روی دیتای قیمت بسته شدن (Close)
