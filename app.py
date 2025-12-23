@@ -70,7 +70,14 @@ def main():
     for i, (name, val) in enumerate(metrics.items()):
         m_cols[i].metric(name, f"{val[0]:,.2f}", f"{val[1]:.2f}%")
 
-    st.sidebar.title("🔬 Research Methodology")
+    st.sidebar.title("🔬 Research Methodology")with st.sidebar.expander("Academic Methodology"):
+    st.write("""
+    **Models used:**
+    - Time-Series: Facebook Prophet (Additive Regressive Model)
+    - Risk: Geometric Brownian Motion (GBM)
+    - Strategy: Momentum-based SMA Crossover
+    - Metrics: Log-returns for stationarity.
+    """)
     page = st.sidebar.radio("Module Selector:", ["Global Stock 360°", "AI Wealth Prediction", "Personal Finance AI"])
 
     if page == "Global Stock 360°":
@@ -97,7 +104,14 @@ def main():
                     initial_cap = 10000
                     ai_equity = initial_cap * (1 + combined['Strategy_Returns'].fillna(0)).cumprod()
                     bh_equity = initial_cap * (1 + combined['Stock'].pct_change().fillna(0)).cumprod()
-                    
+
+st.subheader("🤖 AI Decision Reasoning")
+with st.expander("See why Diana issued this signal", expanded=True):
+    explanation = get_ai_reasoning(ticker, combined)
+    for line in explanation:
+        st.write(line)
+    
+    st.caption(f"Analysis based on technical indicators and volatility regime for {ticker}.")
                     # Metrics calculation
                     ai_ret, ai_sharpe, ai_dd = calculate_metrics(ai_equity, combined['Strategy_Returns'].fillna(0))
                     bh_ret, _, bh_dd = calculate_metrics(bh_equity, combined['Stock'].pct_change().fillna(0))
@@ -163,6 +177,22 @@ def main():
     st.sidebar.divider()
     st.sidebar.info("📌 **Defense Tip:** Focus on the 'Sharpe Ratio' and 'Max Drawdown' when explaining the Backtesting results to the committee.")
     st.sidebar.caption(f"Last updated: {datetime.now().strftime('%Y-%m-%d')}")
-
+def get_ai_reasoning(ticker, combined_df):
+    latest_price = combined_df['Stock'].iloc[-1]
+    sma_20 = combined_df['Stock'].rolling(20).mean().iloc[-1]
+    volatility = combined_df['Stock'].pct_change().std() * np.sqrt(252)
+    
+    reasons = []
+    if latest_price > sma_20:
+        reasons.append(f"• Price is above 20-day SMA (${sma_20:.2f}), indicating a **Bullish Trend**.")
+    else:
+        reasons.append(f"• Price is below 20-day SMA (${sma_20:.2f}), suggesting **Bearish Momentum**.")
+        
+    if volatility > 0.30:
+        reasons.append("• High Annualized Volatility detected. Model suggests **Caution** (High Risk).")
+    else:
+        reasons.append("• Volatility is within stable limits, supporting a **Steady Accumulation** strategy.")
+        
+    return reasons
 if __name__ == "__main__":
     main()
