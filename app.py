@@ -172,3 +172,14 @@ benchmark_curve = pd.Series([10000, 10100, 10050, 10300])
 # حالا خط ۱۶۹ اجرا می‌شود
 display_backtest_results(equity_curve, benchmark_curve)
     display_backtest_results(equity_curve, benchmark_curve)
+# کد واقعی که باید جایگزین شود
+if 'Close' in df.columns:
+    data = df['Close']
+    # محاسبه بر اساس بازدهی واقعی
+    returns = data.pct_change()
+    # فرض کنید مدل شما ستونی به نام 'Signal' دارد
+    strategy_returns = returns * df['Signal'].shift(1)
+    equity_curve = 10000 * (1 + strategy_returns).cumprod().fillna(10000)
+    benchmark_curve = 10000 * (1 + returns).cumprod().fillna(10000)
+    
+    display_backtest_results(equity_curve, benchmark_curve)
