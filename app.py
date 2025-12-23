@@ -221,4 +221,4 @@ def main():
     st.sidebar.caption("Thesis Candidate: Master's in Finance/AI")
 
 if __name__ == "__main__":
-    main()  فرمت  کدارو درست کن من کپی پیست کنم
+    main() 
