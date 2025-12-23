@@ -105,7 +105,7 @@ def main():
         ticker = st.text_input("Enter Ticker:", "NVDA").upper()
         # --- بخش جدید: مقایسه چندگانه و Backtesting واقعی ---
         st.divider()
-                st.header("🔬 Institutional Performance Attribution")
+        st.header("🔬 Institutional Performance Attribution")
                 
                 with st.spinner("Calculating Academic Benchmarks..."):
                     # ۱. دریافت دیتای بازار برای مقایسه (S&P 500)
