@@ -395,3 +395,46 @@ def main():
 
 if __name__ == "__main__":
     main()
+import streamlit as st
+import yfinance as yf
+import pandas as pd
+
+# --- ۱. استفاده از کش برای جلوگیری از بلاک شدن ---
+@st.cache_data(ttl=3600)  # داده‌ها را ۱ ساعت در حافظه نگه می‌دارد
+def fetch_stock_data(ticker):
+    try:
+        stock = yf.Ticker(ticker)
+        # استفاده از history به جای info برای پایداری بیشتر
+        df = stock.history(period="1y")
+        if df.empty:
+            return None, None
+        
+        # استخراج اطلاعات پایه که قبلاً از info می‌گرفتیم
+        last_price = df['Close'].iloc[-1]
+        prev_price = df['Close'].iloc[-2]
+        change = ((last_price - prev_price) / prev_price) * 100
+        
+        return df, {"price": last_price, "change": change}
+    except Exception as e:
+        return None, str(e)
+
+# --- ۲. پیاده‌سازی در رابط کاربری ---
+st.subheader("🔍 Advanced Asset Intelligence")
+ticker_input = st.text_input("Enter Ticker (e.g. AAPL, NVDA):", "AAPL").upper()
+
+if st.button("Analyze Asset"):
+    with st.spinner("Fetching Data..."):
+        hist_data, stats = fetch_stock_data(ticker_input)
+        
+        if hist_data is not None and isinstance(stats, dict):
+            col1, col2 = st.columns(2)
+            col1.metric(f"{ticker_input} Price", f"${stats['price']:.2f}", f"{stats['change']:.2f}%")
+            
+            # تحلیل ریسک (بسیار مهم برای رزومه Finance)
+            daily_returns = hist_data['Close'].pct_change().dropna()
+            volatility = daily_returns.std() * (252**0.5)
+            col2.metric("Annual Volatility", f"{volatility:.2%}")
+            
+            st.plotly_chart(px.line(hist_data, y='Close', title=f"{ticker_input} Historical Trend"))
+        else:
+            st.error("⚠️ Rate limit hit or invalid ticker. Please wait or try a different symbol.")
