@@ -53,3 +53,38 @@ st.sidebar.info("پروژه رساله دکتری مدیریت مالی")
 yfinance
 PyPortfolioOpt
 pLotly
+import streamlit as st
+import yfinance as download
+from pypfopt.efficient_frontier import EfficientFrontier
+from pypfopt import risk_models
+from pypfopt import expected_returns
+import plotly.express as px
+
+st.title("بخش مدیریت پرتفوی (ویژه دفاع ارشد)")
+
+# ۱. دریافت نمادها از کاربر
+tickers = st.text_input("نمادهای مورد نظر را با فاصله وارد کنید (مثلا: AAPL TSLA MSFT)", "AAPL TSLA MSFT")
+tickers_list = tickers.split()
+
+if st.button('محاسبه بهینه‌ترین سبد'):
+    # ۲. دانلود داده‌ها
+    data = download.download(tickers_list, period="1y")['Adj Close']
+    
+    # ۳. محاسبات مالی (مرز کارا)
+mu = expected_returns.mean_historical_return(data) # بازده انتظاری
+    S = risk_models.sample_cov(data) # ریسک (کوواریانس)
+    
+    ef = EfficientFrontier(mu, S)
+    weights = ef.max_sharpe() # محاسبه بهترین نسبت سود به ریسک
+    cleaned_weights = ef.clean_weights()
+    
+    # ۴. نمایش نتایج به صورت نمودار
+    st.subheader("وزن‌های پیشنهادی برای هر سهم:")
+    fig = px.pie(values=list(cleaned_weights.values()), names=list(cleaned_weights.keys()), title="Optimal Portfolio Allocation")
+    st.plotly_chart(fig)
+
+    # ۵. نمایش شاخص‌های عملکرد (برای سوالات استاد)
+    perf = ef.portfolio_performance(verbose=True)
+    st.write(f"بازده سالانه انتظاری: {perf[0]:.2%}")
+    st.write(f"نوسان‌پذیری (ریسک): {perf[1]:.2%}")
+    st.write(f"شاخص شارپ: {perf[2]:.2f}")
