@@ -13,7 +13,7 @@ st.set_page_config(page_title="AI Finance & Research Platform", layout="wide")
 
 # --- 2. توابع محاسباتی و منطق مالی ---
 def calculate_asset_pricing_models(stock_returns, market_returns):
-    # فرض بر نرخ بهره بدون ریسک (Risk-Free Rate) 0.02 برای اروپا
+    # فرض بر نرخ بهره بدون ریسک (Risk-Free Rate) 0.02 برای اروپا
     rf = 0.02 / 252 
     
     # 1. مدل CAPM
