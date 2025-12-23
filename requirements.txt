@@ -1,8 +1,5 @@
-yfinance
-pandas
-matplotlib
 streamlit
+pandas
 yfinance
-PyPortfolioOpt
 plotly
 prophet
