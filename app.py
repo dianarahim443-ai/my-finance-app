@@ -80,3 +80,57 @@ elif page == "Portfolio Optimization & Correlation":
             i3.metric("Sharpe Ratio", f"{perf[2]:.2f}")
             
             st.success("Analysis based on Modern Portfolio Theory (MPT)")
+pip install yfinance pandas plotly
+import plotly.express as px
+
+# دریافت تاریخچه یک ساله طلا
+gold_history = yf.Ticker("GC=F").history(period="1y").reset_index()
+
+# رسم نمودار با Plotly
+fig = px.line(gold_history, x='Date', y='Close', title='Trend of Gold Price (1 Year)')
+st.plotly_chart(fig, use_container_width=True)
+# فراخوانی تابع
+market_data = get_market_metrics()
+
+# ایجاد ستون برای نمایش
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    price, delta = market_data["Gold"]
+    st.metric("Gold (USD)", f"${price}", f"{delta}%")
+
+with col2:
+    price, delta = market_data["Brent Oil"]
+    st.metric("Brent Oil", f"${price}", f"{delta}%")
+
+with col3:
+    price, delta = market_data["FTSE MIB (Italy)"]
+    st.metric("Italy Stock Index", f"{price}", f"{delta}%")
+    import yfinance as yf
+import streamlit as st
+
+def get_market_metrics():
+    # دریافت داده‌های طلا، نفت برنت و شاخص بورس ایتالیا
+    tickers = {
+        "Gold": "GC=F",
+        "Brent Oil": "BZ=F",
+        "FTSE MIB (Italy)": "FTSEMIB.MI"
+    }
+    
+    results = {}
+    for name, ticker in tickers.items():
+        data = yf.Ticker(ticker).history(period="2d")
+        if len(data) >= 2:
+            current_price = data['Close'].iloc[-1]
+            prev_price = data['Close'].iloc[-2]
+            delta = ((current_price - prev_price) / prev_price) * 100
+            results[name] = (round(current_price, 2), round(delta, 2))
+    return results
+    import plotly.express as px
+
+# دریافت تاریخچه یک ساله طلا
+gold_history = yf.Ticker("GC=F").history(period="1y").reset_index()
+
+# رسم نمودار با Plotly
+fig = px.line(gold_history, x='Date', y='Close', title='Trend of Gold Price (1 Year)')
+st.plotly_chart(fig, use_container_width=True)
