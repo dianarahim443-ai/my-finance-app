@@ -5,3 +5,4 @@ streamlit
 yfinance
 PyPortfolioOpt
 plotly
+prophet
