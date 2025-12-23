@@ -144,3 +144,11 @@ from pypfopt import risk_models, expected_returns
 import plotly.express as px
 st.sidebar.title("Thesis Navigation")
 page = st.sidebar.radio("Select a Module:", ["Standard Technical Analysis", "MSc Portfolio Optimization"])
+# --- گام اول: تعریف منو در سایدبار ---
+st.sidebar.title("Thesis Navigation")
+page = st.sidebar.radio("Select a Module:", ["Standard Technical Analysis", "MSc Portfolio Optimization"])
+
+# --- گام دوم: اینجا همان جایی است که پرسیدی ---
+if page == "Standard Technical Analysis":
+    # از اینجا به بعد، تمام کدهای قدیمی سایتت شروع می‌شود
+    # یادت باشد که تمام کدهای قدیمی را باید ۴ فضای خالی (یک Tab) به جلو ببری
