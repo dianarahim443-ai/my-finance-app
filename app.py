@@ -438,3 +438,9 @@ if st.button("Analyze Asset"):
             st.plotly_chart(px.line(hist_data, y='Close', title=f"{ticker_input} Historical Trend"))
         else:
             st.error("⚠️ Rate limit hit or invalid ticker. Please wait or try a different symbol.")
+# اضافه کردن تحلیل توزیع بازدهی
+st.subheader("Distribution of Returns (Risk Profile)")
+fig_dist = px.histogram(daily_returns, nbins=50, marginal="box", 
+                         title="Daily Returns Frequency",
+                         color_discrete_sequence=['#636EFA'])
+st.plotly_chart(fig_dist, use_container_width=True)
