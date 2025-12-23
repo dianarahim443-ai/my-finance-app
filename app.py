@@ -50,3 +50,6 @@ if st.button('تحلیل هوشمند'):
             st.pyplot(fig)
 
 st.sidebar.info("پروژه رساله دکتری مدیریت مالی")
+yfinance
+PyPortfolioOpt
+pLotly
