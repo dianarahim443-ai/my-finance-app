@@ -142,3 +142,5 @@ import pandas as pd
 from pypfopt.efficient_frontier import EfficientFrontier
 from pypfopt import risk_models, expected_returns
 import plotly.express as px
+st.sidebar.title("Thesis Navigation")
+page = st.sidebar.radio("Select a Module:", ["Standard Technical Analysis", "MSc Portfolio Optimization"])
