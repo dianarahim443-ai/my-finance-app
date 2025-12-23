@@ -80,7 +80,7 @@ elif page == "Portfolio Optimization & Correlation":
             i3.metric("Sharpe Ratio", f"{perf[2]:.2f}")
             
             st.success("Analysis based on Modern Portfolio Theory (MPT)")
-pip install yfinance pandas plotly
+
 import plotly.express as px
 
 # دریافت تاریخچه یک ساله طلا
