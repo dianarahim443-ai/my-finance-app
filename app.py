@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import yfinance as yf
@@ -119,4 +120,18 @@ def main():
             
             fig_f = go.Figure()
             fig_f.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat'], name='Prediction'))
-            st.plotly_chart(fig_f
+            st.plotly_chart(fig_f, use_container_width=True)
+
+    elif page == "Personal Finance AI":
+        st.header("💳 Expense Intelligence")
+        uploaded = st.file_uploader("Upload CSV", type="csv")
+        if uploaded:
+            df_user = pd.read_csv(uploaded)
+            st.write(df_user.head())
+
+    # فوتر آکادمیک
+    st.sidebar.divider()
+    st.sidebar.caption("Thesis Candidate: Master's in Finance/AI\nUniversity: Italy Academic Research")
+
+if __name__ == "__main__":
+    main()
