@@ -180,3 +180,118 @@ with st.expander("🔍 Global Stock Intelligence"):
                 
         except Exception as e:
             st.error(f"Could not fetch data for {ticker_input}. Please check the ticker symbol.")
+            import streamlit as st
+import pandas as pd
+import yfinance as yf
+import plotly.express as px
+import plotly.graph_objects as go
+from prophet import Prophet
+import numpy as np
+
+# --- 1. Global Configuration ---
+st.set_page_config(page_title="AI Finance & Portfolio Intelligence", layout="wide")
+
+# --- 2. Market Data Function ---
+@st.cache_data(ttl=3600)
+def get_global_metrics():
+    tickers = {"Gold": "GC=F", "S&P 500": "^GSPC", "Bitcoin": "BTC-USD", "EUR/USD": "EURUSD=X"}
+    data = {}
+    for name, tike in tickers.items():
+        try:
+            df = yf.Ticker(tike).history(period="2d")
+            price = df['Close'].iloc[-1]
+            change = ((price - df['Close'].iloc[-2]) / df['Close'].iloc[-2]) * 100
+            data[name] = (price, change)
+        except: data[name] = (0, 0)
+    return data
+
+# --- 3. Expense Categorization Logic (از لینک ارسالی) ---
+def categorize_expenses(description):
+    description = description.lower()
+    if any(word in description for word in ['amazon', 'shop', 'mall', 'buy']):
+        return 'Shopping'
+    elif any(word in description for word in ['uber', 'gas', 'snapp', 'train', 'flight']):
+        return 'Transport'
+    elif any(word in description for word in ['restaurant', 'food', 'cafe', 'pizza']):
+        return 'Dining'
+    elif any(word in description for word in ['rent', 'bill', 'electric', 'water']):
+        return 'Bills & Housing'
+    else:
+        return 'Others'
+
+# --- 4. Main App ---
+def main():
+    st.title("🤖 AI Integrated Financial Ecosystem")
+    st.markdown("---")
+
+    # Metrics Row
+    metrics = get_global_metrics()
+    cols = st.columns(len(metrics))
+    for i, (name, val) in enumerate(metrics.items()):
+        cols[i].metric(name, f"{val[0]:,.2f}", f"{val[1]:.2f}%")
+
+    # Sidebar Navigation
+    st.sidebar.title("Navigation")
+    page = st.sidebar.radio("Go to:", ["Personal Finance AI", "Global Stock Analyzer", "Wealth Forecasting"])
+
+    # --- PAGE 1: Personal Finance (NLP & Categorization) ---
+    if page == "Personal Finance AI":
+        st.header("💳 Personal Expense Intelligence")
+        uploaded_file = st.file_uploader("Upload CSV Statement", type="csv")
+        
+        if uploaded_file:
+            df = pd.read_csv(uploaded_file)
+            if 'Description' in df.columns and 'Amount' in df.columns:
+                df['Category'] = df['Description'].apply(categorize_expenses)
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.subheader("Spending by Category")
+                    fig_pie = px.pie(df, values='Amount', names='Category', hole=0.4)
+                    st.plotly_chart(fig_pie)
+                
+                with col2:
+                    st.subheader("AI Analysis")
+                    total_spent = df['Amount'].sum()
+                    st.write(f"**Total Expenses:** ${total_spent:,.2f}")
+                    top_cat = df.groupby('Category')['Amount'].sum().idxmax()
+                    st.warning(f"⚠️ Your highest spending is in **{top_cat}**. Consider optimizing this area.")
+
+    # --- PAGE 2: Stock Analyzer ---
+    elif page == "Global Stock Analyzer":
+        st.header("🔍 Real-time Equity Analysis")
+        ticker = st.text_input("Enter Ticker (e.g. NVDA, AAPL):", "NVDA").upper()
+        if st.button("Analyze Stock"):
+            stock = yf.Ticker(ticker)
+            hist = stock.history(period="1y")
+            if not hist.empty:
+                fig = px.line(hist, y='Close', title=f"{ticker} Performance")
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # Volatility Check
+                returns = hist['Close'].pct_change()
+                vol = (returns.std() * np.sqrt(252)) * 100
+                st.info(f"Annualized Volatility: {vol:.2f}%")
+
+    # --- PAGE 3: Forecasting ---
+    elif page == "Wealth Forecasting":
+        st.header("🔮 AI Wealth Projection")
+        st.write("Projecting your future net worth based on current trends...")
+        # شبیه‌سازی داده برای نمایش قابلیت پیش‌بینی
+        df_demo = pd.DataFrame({
+            'ds': pd.date_range(start='2024-01-01', periods=100),
+            'y': np.random.normal(100, 10, 100).cumsum()
+        })
+        m = Prophet()
+        m.fit(df_demo)
+        future = m.make_future_dataframe(periods=30)
+        forecast = m.predict(future)
+        fig_f = px.line(forecast, x='ds', y='yhat', title="Next 30 Days Forecast")
+        st.plotly_chart(fig_f)
+
+    # Global Footer
+    st.sidebar.markdown("---")
+    st.sidebar.caption("Global Finance AI - v2.0 | Scientific Research Project")
+
+if __name__ == "__main__":
+    main()
