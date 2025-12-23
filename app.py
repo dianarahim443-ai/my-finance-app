@@ -138,3 +138,32 @@ def run_backtest(data, signals, initial_capital=10000):
     equity_curve = initial_capital * (1 + strategy_returns).cumprod()
     
     return equity_curve, strategy_returns
+# --- مرحله ۱: تعریف تابع در بالای فایل ---
+def display_backtest_results(equity_curve, benchmark_curve):
+    st.subheader("📈 Performance Analysis")
+    col1, col2, col3 = st.columns(3)
+    
+    total_return = (equity_curve.iloc[-1] / equity_curve.iloc[0] - 1) * 100
+    benchmark_return = (benchmark_curve.iloc[-1] / benchmark_curve.iloc[0] - 1) * 100
+    
+    col1.metric("AI Total Return", f"{total_return:.2f}%")
+    col2.metric("Market Return", f"{benchmark_return:.2f}%")
+    col3.metric("Alpha", f"{(total_return - benchmark_return):.2f}%")
+
+    fig = go.Figure()
+    # اضافه کردن محور X (تاریخ) برای علمی‌تر شدن نمودار
+    fig.add_trace(go.Scatter(x=equity_curve.index, y=equity_curve, name='Diana AI Strategy', line=dict(color='gold')))
+    fig.add_trace(go.Scatter(x=benchmark_curve.index, y=benchmark_curve, name='Market (Buy & Hold)', line=dict(color='gray', dash='dash')))
+    
+    fig.update_layout(title="Equity Curve Comparison", template="plotly_dark")
+    st.plotly_chart(fig)
+
+# --- مرحله ۲: استفاده از آن در بخش اصلی (Main) ---
+# فرض کنید در اینجا مدل شما قیمت‌ها و سیگنال‌ها را محاسبه کرده است
+if st.button("Analyze Performance"):
+    # شما باید قبل از این خط، equity_curve را با تابعی که قبلا دادم محاسبه کرده باشید
+    # مثلا:
+    # equity_curve, _ = run_backtest(data['Close'], signals)
+    # benchmark_curve = initial_capital * (1 + data['Close'].pct_change()).cumprod()
+    
+    display_backtest_results(equity_curve, benchmark_curve)
