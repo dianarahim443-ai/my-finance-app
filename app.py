@@ -444,3 +444,56 @@ fig_dist = px.histogram(daily_returns, nbins=50, marginal="box",
                          title="Daily Returns Frequency",
                          color_discrete_sequence=['#636EFA'])
 st.plotly_chart(fig_dist, use_container_width=True)
+import streamlit as st
+import yfinance as yf
+import pandas as pd
+import numpy as np
+import plotly.express as px
+
+# --- 1. تنظیمات کش (بسیار مهم برای رفع Rate Limit) ---
+@st.cache_data(ttl=3600)  # دیتای هر سهم رو یک ساعت ذخیره می‌کنه
+def get_safe_stock_data(ticker):
+    try:
+        stock = yf.Ticker(ticker)
+        # استفاده از history به جای info چون کمتر حساسیت ایجاد می‌کنه
+        hist = stock.history(period="1y")
+        if hist.empty:
+            return None
+        return hist
+    except Exception:
+        return None
+
+# --- 2. رابط کاربری (UI) ---
+st.title("🏛️ Quantitative Asset Intelligence")
+
+with st.container():
+    ticker_input = st.text_input("Enter Ticker (e.g., NVDA, AAPL, BTC-USD):", "NVDA").upper()
+    
+    if st.button("Generate Strategic Analysis"):
+        df = get_safe_stock_data(ticker_input)
+        
+        if df is not None:
+            # محاسبات مالی سطح بالا
+            last_price = df['Close'].iloc[-1]
+            daily_returns = df['Close'].pct_change().dropna()
+            ann_volatility = daily_returns.std() * np.sqrt(252) # نوسان‌گیری سالانه
+            
+            # نمایش شاخص‌ها
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Market Price", f"${last_price:.2f}")
+            c2.metric("Annual Volatility (Risk)", f"{ann_volatility:.2%}")
+            # محاسبه ساده Value at Risk (VaR) - مورد علاقه اساتید فایننس
+            var_95 = np.percentile(daily_returns, 5)
+            c3.metric("Daily VaR (95%)", f"{var_95:.2%}")
+
+            # نمودار حرفه‌ای
+            fig = px.line(df, y='Close', title=f"{ticker_input} Time-Series Analysis", template="plotly_white")
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # نمودار توزیع بازدهی (Returns Distribution)
+            fig_dist = px.histogram(daily_returns, nbins=50, title="Distribution of Returns (Kurtosis & Skewness Analysis)")
+            st.plotly_chart(fig_dist, use_container_width=True)
+            
+
+        else:
+            st.error("⚠️ Rate Limit Active or Ticker Not Found. Please wait 1 minute or try a different asset.")
