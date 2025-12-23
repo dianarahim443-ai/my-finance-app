@@ -165,5 +165,10 @@ if st.button("Analyze Performance"):
     # مثلا:
     # equity_curve, _ = run_backtest(data['Close'], signals)
     # benchmark_curve = initial_capital * (1 + data['Close'].pct_change()).cumprod()
-    
+    # خط موقت برای تست
+equity_curve = pd.Series([10000, 10200, 10100, 10500]) 
+benchmark_curve = pd.Series([10000, 10100, 10050, 10300])
+
+# حالا خط ۱۶۹ اجرا می‌شود
+display_backtest_results(equity_curve, benchmark_curve)
     display_backtest_results(equity_curve, benchmark_curve)
