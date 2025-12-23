@@ -1,4 +1,9 @@
 import streamlit as st
+import pandas as pd
+import yfinance as yf # برای قیمت‌های زنده بازار
+from prophet import Prophet # برای پیش‌بینی آینده (Forecasting)
+import plotly.express as px # برای نمودارهای تعاملی ارشد
+import streamlit as st
 import yfinance as yf
 import pandas as pd
 import matplotlib.pyplot as plt
