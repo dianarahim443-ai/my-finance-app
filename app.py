@@ -5,12 +5,13 @@ import plotly.express as px
 import plotly.graph_objects as go
 from prophet import Prophet
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # --- 1. تنظیمات سیستمی ---
 st.set_page_config(page_title="AI Finance & Research Platform", layout="wide")
 
-# --- 2. موتور محاسباتی (Cache برای سرعت بالا) ---
+# --- 2. توابع محاسباتی و منطق مالی ---
+
 @st.cache_data(ttl=3600)
 def get_global_metrics():
     tickers = {"Gold": "GC=F", "S&P 500": "^GSPC", "Bitcoin": "BTC-USD", "EUR/USD": "EURUSD=X"}
@@ -24,12 +25,39 @@ def get_global_metrics():
         except: data[name] = (0, 0)
     return data
 
+def run_backtest(data, signals, initial_capital=10000):
+    """محاسبه عملکرد استراتژی بر اساس سیگنال‌ها"""
+    positions = signals.shift(1).fillna(0)
+    returns = data.pct_change()
+    strategy_returns = returns * positions
+    equity_curve = initial_capital * (1 + strategy_returns).cumprod().fillna(initial_capital)
+    return equity_curve
+
+def display_backtest_results(equity_curve, benchmark_curve):
+    """نمایش بصری نتایج بک‌تست"""
+    st.subheader("📈 Backtesting & Performance Analysis")
+    col1, col2, col3 = st.columns(3)
+    
+    total_return = (equity_curve.iloc[-1] / equity_curve.iloc[0] - 1) * 100
+    benchmark_return = (benchmark_curve.iloc[-1] / benchmark_curve.iloc[0] - 1) * 100
+    alpha = total_return - benchmark_return
+    
+    col1.metric("AI Strategy Return", f"{total_return:.2f}%")
+    col2.metric("Market Return", f"{benchmark_return:.2f}%")
+    col3.metric("Alpha (Excess Return)", f"{alpha:.2f}%", delta_color="normal")
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=equity_curve.index, y=equity_curve, name='Diana AI Strategy', line=dict(color='gold', width=3)))
+    fig.add_trace(go.Scatter(x=benchmark_curve.index, y=benchmark_curve, name='Market (Buy & Hold)', line=dict(color='gray', dash='dash')))
+    
+    fig.update_layout(title="Equity Growth Over Time", template="plotly_dark", hovermode="x unified")
+    st.plotly_chart(fig, use_container_width=True)
+
 def categorize_expenses(description):
     desc = description.lower()
     if any(word in desc for word in ['amazon', 'shop', 'buy']): return 'Shopping'
     if any(word in desc for word in ['uber', 'gas', 'snapp', 'train']): return 'Transport'
     if any(word in desc for word in ['restaurant', 'food', 'cafe']): return 'Dining'
-    if any(word in desc for word in ['rent', 'bill', 'water']): return 'Bills'
     return 'Others'
 
 # --- 3. بدنه اصلی برنامه ---
@@ -37,7 +65,7 @@ def main():
     st.title("🏛️ Intelligent Financial Systems & Global Market AI")
     st.markdown("---")
 
-    # ردیف شاخص‌های زنده جهانی
+    # ردیف شاخص‌های زنده
     metrics = get_global_metrics()
     m_cols = st.columns(len(metrics))
     for i, (name, val) in enumerate(metrics.items()):
@@ -45,148 +73,50 @@ def main():
 
     # منوی ناوبری
     st.sidebar.title("🔬 Research Methodology")
-    page = st.sidebar.radio("Go to Module:", 
-                           ["Global Stock 360°", "AI Wealth Prediction", "Personal Finance AI"])
+    page = st.sidebar.radio("Go to Module:", ["Global Stock 360°", "AI Wealth Prediction", "Personal Finance AI"])
 
-    # --- ماژول ۱: تحلیل جامع سهام بین‌المللی (بخش مورد نظر شما) ---
     if page == "Global Stock 360°":
         st.header("🔍 Comprehensive Equity Intelligence")
-        ticker = st.text_input("Enter International Ticker (e.g. NVDA, AAPL, TSLA, RACE):", "NVDA").upper()
+        ticker = st.text_input("Enter Ticker (e.g. NVDA, AAPL, RACE):", "NVDA").upper()
         
         if st.button("Run Full Analysis"):
-            with st.spinner("Analyzing Market Data..."):
-                stock = yf.Ticker(ticker)
-                df = stock.history(period="1y")
+            stock = yf.Ticker(ticker)
+            df = stock.history(period="1y")
+            
+            if not df.empty:
+                # تحلیل تکنیکال
+                c1, c2, c3 = st.columns(3)
+                c1.metric("Current Price", f"${df['Close'].iloc[-1]:.2f}")
+                c2.metric("Annual Volatility", f"{(df['Close'].pct_change().std() * np.sqrt(252)):.2%}")
                 
-                if not df.empty:
-                    # نمایش شاخص‌ها
-                    info = stock.info
-                    c1, c2, c3, c4 = st.columns(4)
-                    c1.metric("Current Price", f"${df['Close'].iloc[-1]:.2f}")
-                    c2.metric("Market Cap", f"{info.get('marketCap', 0):,}")
-                    c3.metric("P/E Ratio", info.get('trailingPE', 'N/A'))
-                    c4.metric("Annual Volatility", f"{(df['Close'].pct_change().std() * np.sqrt(252)):.2%}")
+                # نمایش نمودار قیمت
+                st.line_chart(df['Close'])
 
-                    # نمودار تکنیکال پیشرفته
-                    df['MA50'] = df['Close'].rolling(window=50).mean()
-                    fig = go.Figure()
-                    fig.add_trace(go.Scatter(x=df.index, y=df['Close'], name='Market Price'))
-                    fig.add_trace(go.Scatter(x=df.index, y=df['MA50'], name='50-Day Trend', line=dict(dash='dash')))
-                    st.plotly_chart(fig, use_container_width=True)
-                    
+                # --- بخش بک‌تست (اضافه شده) ---
+                st.divider()
+                # شبیه‌سازی سیگنال هوشمند (در پروژه واقعی از مدل ML شما می‌آید)
+                df['Signal'] = np.where(df['Close'] > df['Close'].rolling(20).mean(), 1, 0)
+                
+                equity = run_backtest(df['Close'], df['Signal'])
+                benchmark = 10000 * (1 + df['Close'].pct_change()).cumprod().fillna(10000)
+                
+                display_backtest_results(equity, benchmark)
+            else:
+                st.error("Data not found.")
 
-                    # تحلیل سودآوری
-                    st.subheader("Financial Health (Net Income)")
-                    try:
-                        st.bar_chart(stock.financials.loc['Net Income'])
-                    except:
-                        st.info("Detailed financials not available for this ticker.")
-                else:
-                    st.error("Ticker not found or API Limit reached.")
-
-    # --- ماژول ۲: پیش‌بینی با هوش مصنوعی ---
     elif page == "AI Wealth Prediction":
         st.header("🔮 AI Time-Series Forecasting")
         symbol = st.text_input("Ticker to Forecast:", "BTC-USD").upper()
-        
         if st.button("Generate AI Prediction"):
             raw = yf.download(symbol, period="2y").reset_index()
             df_p = raw[['Date', 'Close']].rename(columns={'Date': 'ds', 'Close': 'y'})
+            df_p['ds'] = df_p['ds'].dt.tz_localize(None) # رفع خطای زمانی
             
-            model = Prophet(daily_seasonality=True)
+            model = Prophet()
             model.fit(df_p)
-            future = model.make_future_dataframe(periods=60)
+            future = model.make_future_dataframe(periods=30)
             forecast = model.predict(future)
             
             fig_f = go.Figure()
-            fig_f.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat'], name='Expected'))
-            fig_f.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat_upper'], fill=None, mode='lines', line_color='rgba(0,176,246,0.2)'))
-            fig_f.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat_lower'], fill='tonexty', mode='lines', line_color='rgba(0,176,246,0.2)'))
-            st.plotly_chart(fig_f, use_container_width=True)
-
-    # --- ماژول ۳: تحلیل امور مالی شخصی ---
-    elif page == "Personal Finance AI":
-        st.header("💳 NLP Expense Categorization")
-        uploaded = st.file_uploader("Upload CSV Statement", type="csv")
-        if uploaded:
-            df_user = pd.read_csv(uploaded)
-            if 'Description' in df_user.columns:
-                df_user['Category'] = df_user['Description'].apply(categorize_expenses)
-                st.write(df_user)
-                fig_pie = px.pie(df_user, values='Amount', names='Category', hole=0.5)
-                st.plotly_chart(fig_pie)
-
-    # فوتر آکادمیک
-    st.sidebar.divider()
-    st.sidebar.caption("Thesis Candidate: Master's in Finance/AI\nAcademic Year: 2024-2025")
-
-if __name__ == "__main__":
-    main()
-import pandas as pd
-import numpy as np
-
-def run_backtest(data, signals, initial_capital=10000):
-    """
-    data: دیتای قیمت‌ها (Close price)
-    signals: سیگنال‌های تولید شده توسط مدل شما (1 برای خرید، -1 برای فروش)
-    """
-    positions = signals.shift(1) # معامله در قیمت روز بعد از سیگنال
-    returns = data.pct_change()
-    strategy_returns = returns * positions
-    
-    # محاسبه ثروت انباشته (Equity Curve)
-    equity_curve = initial_capital * (1 + strategy_returns).cumprod()
-    
-    return equity_curve, strategy_returns
-# --- مرحله ۱: تعریف تابع در بالای فایل ---
-def display_backtest_results(equity_curve, benchmark_curve):
-    st.subheader("📈 Performance Analysis")
-    col1, col2, col3 = st.columns(3)
-    
-    total_return = (equity_curve.iloc[-1] / equity_curve.iloc[0] - 1) * 100
-    benchmark_return = (benchmark_curve.iloc[-1] / benchmark_curve.iloc[0] - 1) * 100
-    
-    col1.metric("AI Total Return", f"{total_return:.2f}%")
-    col2.metric("Market Return", f"{benchmark_return:.2f}%")
-    col3.metric("Alpha", f"{(total_return - benchmark_return):.2f}%")
-
-    fig = go.Figure()
-    # اضافه کردن محور X (تاریخ) برای علمی‌تر شدن نمودار
-    fig.add_trace(go.Scatter(x=equity_curve.index, y=equity_curve, name='Diana AI Strategy', line=dict(color='gold')))
-    fig.add_trace(go.Scatter(x=benchmark_curve.index, y=benchmark_curve, name='Market (Buy & Hold)', line=dict(color='gray', dash='dash')))
-    
-    fig.update_layout(title="Equity Curve Comparison", template="plotly_dark")
-    st.plotly_chart(fig)
-
-# --- مرحله ۲: استفاده از آن در بخش اصلی (Main) ---
-# فرض کنید در اینجا مدل شما قیمت‌ها و سیگنال‌ها را محاسبه کرده است
-# خط ۱۶۳: دستور شرطی شما
-if st.button("Generate Backtest Report"):
-    # تمام این خطوط باید ۴ اسپیس (یا یک Tab) جلوتر باشند
-    equity_curve = pd.Series([10000, 10200, 10100, 10500])
-    benchmark_curve = pd.Series([10000, 10100, 10050, 10300])
-    
-    # فراخوانی تابع نمایش هم باید جلوتر باشد
-    display_backtest_results(equity_curve, benchmark_curve)
-    # شما باید قبل از این خط، equity_curve را با تابعی که قبلا دادم محاسبه کرده باشید
-    # مثلا:
-    # equity_curve, _ = run_backtest(data['Close'], signals)
-    # benchmark_curve = initial_capital * (1 + data['Close'].pct_change()).cumprod()
-    # خط موقت برای تست
-equity_curve = pd.Series([10000, 10200, 10100, 10500]) 
-benchmark_curve = pd.Series([10000, 10100, 10050, 10300])
-
-# حالا خط ۱۶۹ اجرا می‌شود
-display_backtest_results(equity_curve, benchmark_curve)
-    display_backtest_results(equity_curve, benchmark_curve)
-# کد واقعی که باید جایگزین شود
-if 'Close' in df.columns:
-    data = df['Close']
-    # محاسبه بر اساس بازدهی واقعی
-    returns = data.pct_change()
-    # فرض کنید مدل شما ستونی به نام 'Signal' دارد
-    strategy_returns = returns * df['Signal'].shift(1)
-    equity_curve = 10000 * (1 + strategy_returns).cumprod().fillna(10000)
-    benchmark_curve = 10000 * (1 + returns).cumprod().fillna(10000)
-    
-    display_backtest_results(equity_curve, benchmark_curve)
+            fig_f.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat'], name='Prediction'))
+            st.plotly_chart(fig_f
