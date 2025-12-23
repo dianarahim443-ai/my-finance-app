@@ -7,137 +7,114 @@ from prophet import Prophet
 import numpy as np
 from datetime import datetime, timedelta
 
-# --- 1. تنظیمات سیستمی (Academic Standard) ---
-st.set_page_config(page_title="Global Finance AI | MSc Research", layout="wide")
+# --- 1. تنظیمات اولیه سیستم ---
+st.set_page_config(page_title="Global Finance AI | Advanced Analytics", layout="wide")
 
-# --- 2. توابع بهینه‌سازی شده برای جلوگیری از ارور Rate Limit ---
+# --- 2. موتور بهینه‌شده دریافت داده (برای جلوگیری از Rate Limit) ---
 @st.cache_data(ttl=3600)
-def get_safe_market_data(ticker):
-    """دریافت دیتای بازار با استفاده از کش برای جلوگیری از بلاک شدن آی‌پی"""
+def get_advanced_stock_data(ticker):
     try:
         stock = yf.Ticker(ticker)
+        # دریافت دیتای یک ساله برای تحلیل دقیق‌تر
         df = stock.history(period="1y")
         return df if not df.empty else None
     except:
         return None
 
+# --- 3. تابع دسته‌بندی مخارج ---
 def categorize_expenses(description):
-    """هوش مصنوعی ساده برای دسته‌بندی مخارج"""
     description = str(description).lower()
-    if any(word in description for word in ['amazon', 'shop', 'mall', 'buy', 'apple']):
-        return 'Shopping'
-    elif any(word in description for word in ['uber', 'gas', 'bolt', 'train', 'flight', 'ryanair']):
-        return 'Transport'
-    elif any(word in description for word in ['restaurant', 'food', 'cafe', 'pizza', 'starbucks']):
-        return 'Dining'
-    elif any(word in description for word in ['rent', 'bill', 'electric', 'water', 'internet']):
-        return 'Bills & Housing'
-    else:
-        return 'Fixed Costs / Others'
+    if any(word in description for word in ['amazon', 'shop', 'mall', 'buy']): return 'Shopping'
+    if any(word in description for word in ['uber', 'gas', 'snapp', 'train', 'flight']): return 'Transport'
+    if any(word in description for word in ['restaurant', 'food', 'cafe', 'pizza']): return 'Dining'
+    return 'Other Expenses'
 
-# --- 3. بدنه اصلی اپلیکیشن ---
+# --- 4. رابط کاربری اصلی ---
 def main():
-    st.title("🌐 Strategic Financial Intelligence Platform")
-    st.markdown("_Advanced Quantitative Analysis for International Finance & Personal Wealth_")
+    st.title("🏛️ Professional Financial Intelligence Platform")
+    
+    # منوی ناوبری در سایدبار
+    st.sidebar.title("🔍 Navigation")
+    page = st.sidebar.radio("Go to:", ["Market Pulse", "Asset Intelligence", "Personal Finance AI", "Wealth Projection"])
 
-    # --- ناوبری (Navigation) ---
-    st.sidebar.title("🕹️ Control Panel")
-    page = st.sidebar.radio("Select Module:", 
-                           ["Market Overview", "Personal Finance AI", "Asset Intelligence", "Wealth Forecasting"])
-
-    # --- ماژول ۱: نمای کلی بازار جهانی ---
-    if page == "Market Overview":
-        st.header("🌍 Global Market Pulse")
-        tickers = {"S&P 500": "^GSPC", "Gold Spot": "GC=F", "Bitcoin": "BTC-USD", "EUR/USD": "EURUSD=X"}
+    # --- بخش ۱: نمای کلی بازار (Global Pulse) ---
+    if page == "Market Pulse":
+        st.header("🌍 Global Market Performance")
+        tickers = {"S&P 500": "^GSPC", "Gold": "GC=F", "Bitcoin": "BTC-USD", "EUR/USD": "EURUSD=X"}
         cols = st.columns(4)
         for i, (name, t) in enumerate(tickers.items()):
-            df = get_safe_market_data(t)
+            df = get_advanced_stock_data(t)
             if df is not None:
                 price = df['Close'].iloc[-1]
-                prev_price = df['Close'].iloc[-2]
-                delta = ((price - prev_price) / prev_price) * 100
-                cols[i].metric(name, f"{price:,.2f}", f"{delta:.2f}%")
-        
-        st.divider()
-        st.subheader("Asset Performance Comparison")
-        # نمایش همبستگی فرضی برای ارائه
-        corr_data = np.random.rand(4,4)
-        fig_corr = px.imshow(corr_data, x=list(tickers.keys()), y=list(tickers.keys()), 
-                             text_auto=True, color_continuous_scale='RdBu_r')
-        st.plotly_chart(fig_corr, use_container_width=True)
+                change = ((price - df['Close'].iloc[-2]) / df['Close'].iloc[-2]) * 100
+                cols[i].metric(name, f"{price:,.2f}", f"{change:.2f}%")
 
-    # --- ماژول ۲: تحلیل هزینه‌های شخصی ---
-    elif page == "Personal Finance AI":
-        st.header("💳 Intelligent Expense Analysis")
-        uploaded_file = st.file_uploader("Upload CSV Statement (Required: Description, Amount)", type="csv")
-        
-        if uploaded_file:
-            df = pd.read_csv(uploaded_file)
-            if 'Description' in df.columns and 'Amount' in df.columns:
-                df['Category'] = df['Description'].apply(categorize_expenses)
-                
-                c1, c2 = st.columns(2)
-                with c1:
-                    fig_pie = px.pie(df, values='Amount', names='Category', hole=0.5, title="Spending Allocation")
-                    st.plotly_chart(fig_pie)
-                with c2:
-                    total = df['Amount'].sum()
-                    st.metric("Total Monthly Burn", f"${total:,.2f}")
-                    top_cat = df.groupby('Category')['Amount'].sum().idxmax()
-                    st.warning(f"⚠️ Efficiency Alert: High spending detected in **{top_cat}**.")
-            else:
-                st.error("Invalid CSV format. Please ensure 'Description' and 'Amount' columns exist.")
-
-    # --- ماژول ۳: تحلیل کمی دارایی‌ها (بسیار مهم برای رزومه) ---
+    # --- بخش ۲: تحلیل عمیق سهام (Asset Intelligence) - بخش درخواستی شما ---
     elif page == "Asset Intelligence":
-        st.header("🔍 Quantitative Security Analysis")
-        ticker = st.text_input("Enter Ticker (e.g. NVDA, AAPL, TSLA):", "NVDA").upper()
+        st.header("📊 Comprehensive Asset Analysis")
+        ticker = st.text_input("Enter Ticker (e.g., NVDA, AAPL, TSLA, BTC-USD):", "NVDA").upper()
         
-        if st.button("Run Financial Audit"):
-            df = get_safe_market_data(ticker)
-            if df is not None:
-                # محاسبات ریسک و بازده
-                returns = df['Close'].pct_change().dropna()
-                volatility = returns.std() * np.sqrt(252) # نوسان سالانه
-                var_95 = np.percentile(returns, 5) # ارزش در معرض ریسک
-                
-                col1, col2, col3 = st.columns(3)
-                col1.metric("Current Price", f"${df['Close'].iloc[-1]:.2f}")
-                col2.metric("Annualized Volatility", f"{volatility:.2%}")
-                col3.metric("Daily VaR (95%)", f"{var_95:.2%}")
-                
-                st.plotly_chart(px.line(df, y='Close', title=f"{ticker} Historical Trend (1 Year)"), use_container_width=True)
-                
-                # توزیع بازدهی (مورد علاقه اساتید فایننس)
-                fig_dist = px.histogram(returns, nbins=50, title="Returns Distribution Analysis", marginal="box")
-                st.plotly_chart(fig_dist, use_container_width=True)
-            else:
-                st.error("⚠️ Data connection busy or invalid ticker. Please wait a moment.")
+        if st.button("Generate Full Audit"):
+            with st.spinner("Analyzing Market Data..."):
+                df = get_advanced_stock_data(ticker)
+                if df is not None:
+                    # الف) محاسبات بازده و ریسک
+                    returns = df['Close'].pct_change().dropna()
+                    last_price = df['Close'].iloc[-1]
+                    ann_volatility = returns.std() * np.sqrt(252) # نوسان سالانه
+                    sharpe_ratio = (returns.mean() / returns.std()) * np.sqrt(252) # شاخص شارپ
+                    
+                    # ب) نمایش کارت‌های آماری
+                    c1, c2, c3 = st.columns(3)
+                    c1.metric("Current Price", f"${last_price:,.2f}")
+                    c2.metric("Annual Risk (Volatility)", f"{ann_volatility:.2%}")
+                    c3.metric("Sharpe Ratio (Efficiency)", f"{sharpe_ratio:.2f}")
 
-    # --- ماژول ۴: پیش‌بینی ثروت با هوش مصنوعی ---
-    elif page == "Wealth Forecasting":
-        st.header("🔮 AI Time-Series Projection")
-        st.info("Using Meta Prophet Model for 60-day predictive analytics.")
+                    # ج) نمودار قیمتی پیشرفته (Candlestick)
+                    st.subheader("Price Action Analysis")
+                    fig_candle = go.Figure(data=[go.Candlestick(x=df.index,
+                                    open=df['Open'], high=df['High'],
+                                    low=df['Low'], close=df['Close'])])
+                    fig_candle.update_layout(template="plotly_white", height=500)
+                    st.plotly_chart(fig_candle, use_container_width=True)
+                    
+
+                    # د) تحلیل توزیع بازدهی و ریسک سقوط
+                    st.subheader("Risk Distribution (Statistical Profile)")
+                    fig_dist = px.histogram(returns, nbins=50, marginal="box", title="Daily Returns Distribution")
+                    st.plotly_chart(fig_dist, use_container_width=True)
+                    st.info("💡 Tip: A wider distribution indicates higher uncertainty and market risk.")
+
+                else:
+                    st.error("Invalid ticker or connection issue. Please try again.")
+
+    # --- بخش ۳: تحلیل مخارج شخصی ---
+    elif page == "Personal Finance AI":
+        st.header("💳 AI Expense Categorization")
+        uploaded_file = st.file_uploader("Upload CSV", type="csv")
+        if uploaded_file:
+            data = pd.read_csv(uploaded_file)
+            if 'Description' in data.columns and 'Amount' in data.columns:
+                data['Category'] = data['Description'].apply(categorize_expenses)
+                st.plotly_chart(px.pie(data, values='Amount', names='Category', hole=0.4))
+
+    # --- بخش ۴: پیش‌بینی با هوش مصنوعی (Prophet) ---
+    elif page == "Wealth Projection":
+        st.header("🔮 AI Time-Series Forecasting")
+        # ایجاد داده فرضی برای نمایش قابلیت مدل
+        dates = pd.date_range(start=datetime.now()-timedelta(days=100), periods=100)
+        y = np.random.normal(100, 10, 100).cumsum()
+        df_p = pd.DataFrame({'ds': dates, 'y': y})
         
-        # دیتای دمو برای نمایش قدرت مدل
-        dates = pd.date_range(start=datetime.now()-timedelta(days=180), periods=180)
-        values = np.random.normal(100, 10, 180).cumsum() + 5000
-        df_f = pd.DataFrame({'ds': dates, 'y': values})
-        
-        m = Prophet(interval_width=0.95)
-        m.fit(df_f)
-        future = m.make_future_dataframe(periods=60)
+        m = Prophet().fit(df_p)
+        future = m.make_future_dataframe(periods=30)
         forecast = m.predict(future)
+        st.plotly_chart(px.line(forecast, x='ds', y='yhat', title="30-Day Predictive Projection"))
         
-        fig_fore = go.Figure()
-        fig_fore.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat'], name='Forecast', line=dict(color='#00CC96')))
-        fig_fore.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat_upper'], mode='lines', line_color='rgba(0,204,150,0.1)', name='Upper Bound'))
-        fig_fore.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat_lower'], fill='tonexty', mode='lines', line_color='rgba(0,204,150,0.1)', name='Lower Bound'))
-        st.plotly_chart(fig_fore, use_container_width=True)
 
     # Footer
     st.sidebar.divider()
-    st.sidebar.caption("Global Finance AI v2.5 | Master of Science Research Platform")
+    st.sidebar.caption("MSc Finance Research Framework | v3.0 Global")
 
 if __name__ == "__main__":
     main()
