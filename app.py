@@ -160,7 +160,14 @@ def display_backtest_results(equity_curve, benchmark_curve):
 
 # --- مرحله ۲: استفاده از آن در بخش اصلی (Main) ---
 # فرض کنید در اینجا مدل شما قیمت‌ها و سیگنال‌ها را محاسبه کرده است
-if st.button("Analyze Performance"):
+# خط ۱۶۳: دستور شرطی شما
+if st.button("Generate Backtest Report"):
+    # تمام این خطوط باید ۴ اسپیس (یا یک Tab) جلوتر باشند
+    equity_curve = pd.Series([10000, 10200, 10100, 10500])
+    benchmark_curve = pd.Series([10000, 10100, 10050, 10300])
+    
+    # فراخوانی تابع نمایش هم باید جلوتر باشد
+    display_backtest_results(equity_curve, benchmark_curve)
     # شما باید قبل از این خط، equity_curve را با تابعی که قبلا دادم محاسبه کرده باشید
     # مثلا:
     # equity_curve, _ = run_backtest(data['Close'], signals)
