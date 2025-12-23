@@ -88,3 +88,51 @@ mu = expected_returns.mean_historical_return(data) # بازده انتظاری
     st.write(f"بازده سالانه انتظاری: {perf[0]:.2%}")
     st.write(f"نوسان‌پذیری (ریسک): {perf[1]:.2%}")
     st.write(f"شاخص شارپ: {perf[2]:.2f}")
+import yfinance as yf
+from pypfopt.efficient_frontier import EfficientFrontier
+from pypfopt import risk_models, expected_returns
+import plotly.express as px
+
+# اضافه کردن یک تیتر برای بخش آکادمیک
+st.divider() 
+st.header("🎯 Portfolio Optimization (MSc Thesis Module)")
+
+# ورودی برای نمادهای سهام
+tickers = st.text_input("Enter Tickers (separated by space) for Portfolio Analysis:", "AAPL MSFT GOOGL AMZN")
+tickers_list = tickers.split()
+
+if st.button('Run Financial Optimization'):
+    try:
+# ۱. دریافت داده‌های ۳ سال اخیر (استاندارد آکادمیک)
+        data = yf.download(tickers_list, period="3y")['Adj Close']
+        
+        # ۲. محاسبه بازده و ریسک
+        mu = expected_returns.mean_historical_return(data)
+        S = risk_models.sample_cov(data)
+        
+        # ۳. بهینه‌سازی سبد سهام بر اساس شاخص شارپ (Sharpe Ratio)
+        ef = EfficientFrontier(mu, S)
+        weights = ef.max_sharpe()
+        cleaned_weights = ef.clean_weights()
+        
+        # ۴. نمایش خروجی به صورت نمودار Plotly (بسیار شیک برای دفاع)
+        st.subheader("Optimal Asset Allocation")
+        fig = px.pie(
+            values=list(cleaned_weights.values()), 
+            names=list(cleaned_weights.keys()),
+hole=0.4,
+            color_discrete_sequence=px.colors.sequential.RdBu
+        )
+        st.plotly_chart(fig)
+        
+        # ۵. نمایش آمارهای کلیدی (این چیزیه که اساتید می‌پرسن)
+        perf = ef.portfolio_performance()
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Expected Annual Return", f"{perf[0]:.2%}")
+        col2.metric("Annual Volatility (Risk)", f"{perf[1]:.2%}")
+        col3.metric("Sharpe Ratio", f"{perf[2]:.2f}")
+        
+        st.success("✅ This model uses Mean-Variance Optimization (Markowitz Theory).")
+        
+    except Exception as e:
+        st.error(f"Error: {e}. Please check the
