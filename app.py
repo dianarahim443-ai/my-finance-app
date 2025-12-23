@@ -44,7 +44,44 @@ def generate_demo_data():
 def main():
     st.title("🌐 Global Financial Intelligence & Forecasting System")
     st.markdown("_An advanced AI-driven platform for predictive financial analysis and global market tracking._")
-
+# --- International Stock Analyzer Section ---
+    st.divider() # یک خط جداکننده برای زیبایی
+    st.subheader("🔍 Global Investment Intelligence")
+    
+    with st.expander("Click to Analyze Specific Stocks", expanded=False):
+        ticker_symbol = st.text_input("Enter Ticker (e.g., NVDA, AAPL, TSLA):", "NVDA").upper()
+        
+        # استفاده از دکمه برای جلوگیری از درخواست‌های مکرر و رفع Rate Limit
+        if st.button("Run Stock Analysis"):
+            try:
+                stock_obj = yf.Ticker(ticker_symbol)
+                # دریافت تاریخچه قیمت (بسیار پایدارتر از info)
+                stock_hist = stock_obj.history(period="1y")
+                
+                if not stock_hist.empty:
+                    # محاسبات پایه مالی
+                    last_price = stock_hist['Close'].iloc[-1]
+                    annual_return = ((last_price - stock_hist['Close'].iloc[0]) / stock_hist['Close'].iloc[0]) * 100
+                    
+                    c1, c2 = st.columns(2)
+                    c1.metric(f"Current {ticker_symbol} Price", f"${last_price:.2f}")
+                    c2.metric("Annual Performance", f"{annual_return:.2f}%")
+                    
+                    # رسم نمودار قیمت با استایل حرفه‌ای
+                    fig_stock_price = px.line(stock_hist, x=stock_hist.index, y='Close', 
+                                            title=f"{ticker_symbol} - Year over Year Analysis",
+                                            template="plotly_dark") # استایل تیره برای کلاس مالی
+                    st.plotly_chart(fig_stock_price, use_container_width=True)
+                    
+                    # تحلیل نوسانات (Volatility Analysis) - برای رزومه ارشد عالی است
+                    stock_hist['Daily Return'] = stock_hist['Close'].pct_change()
+                    volatility = stock_hist['Daily Return'].std() * (252**0.5) # فرمول سالانه کردن نوسان
+                    st.info(f"📊 Annualized Volatility: {volatility:.2%}")
+                    
+                else:
+                    st.error("Invalid Ticker or No Data Found.")
+            except Exception as e:
+                st.warning("⚠️ Market API is busy. Please wait 1 minute and click the button again.")
     # Sidebar
     st.sidebar.header("🕹️ Control Panel")
     mode = st.sidebar.radio("Select Data Source:", ["Live Demo (Simulation)", "Upload Personal Data"])
