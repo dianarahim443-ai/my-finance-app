@@ -222,5 +222,5 @@ def main():
                 name="Forecast"
             ))
 
-            fig_f.upd_
+            fig_f.update_layout
     
