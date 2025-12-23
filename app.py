@@ -191,7 +191,7 @@ def main():
             fig_f.update_layout(title=f"30-Day Predictive Trend for {symbol}", template="plotly_dark")
             st.plotly_chart(fig_f, use_container_width=True)
 
-    elif page == "Personal Finance AI":
+    ge == "Personal Finance AI":
         st.header("💳 Financial Behavior Analysis")
         uploaded = st.file_uploader("Upload your transaction history (CSV)", type="csv")
         if uploaded:
