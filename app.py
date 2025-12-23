@@ -195,5 +195,21 @@ if st.button("Run Risk Simulation (Monte Carlo)"):
         c1, c2 = st.columns(2)
         c1.metric("Average Expected Price", f"${expected_price:.2f}")
         c2.metric("Worst Case Scenario (5th Percentile)", f"${var_5:.2f}")
+        def run_monte_carlo(data, prediction_days=30, simulations=100):
+    returns = data.pct_change()
+    last_price = data.iloc[-1]
+    daily_vol = returns.std()
+    avg_daily_ret = returns.mean()
+    
+    simulation_df = pd.DataFrame()
+    
+    for i in range(simulations):
+        prices = [last_price]
+        for d in range(prediction_days):
+            next_price = prices[-1] * np.exp(avg_daily_ret + daily_vol * np.random.normal())
+            prices.append(next_price)
+        simulation_df[i] = prices
+        
+    return simulation_df  # حالا این return درست کار می‌کند چون داخل تابع است
     return simulation_df
     
