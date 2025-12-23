@@ -135,3 +135,51 @@ def main():
 
 if __name__ == "__main__":
     main()
+def run_monte_carlo(data, prediction_days=30, simulations=100):
+    # محاسبه بازده روزانه و واریانس
+    returns = data.pct_change()
+    last_price = data.iloc[-1]
+    
+    # پارامترهای مدل مالی (Geometric Brownian Motion)
+    daily_vol = returns.std()
+    avg_daily_ret = returns.mean()
+    
+    simulation_df = pd.DataFrame()
+    
+    for i in range(simulations):
+        prices = [last_price]
+        for d in range(prediction_days):
+            # فرمول ریاضی: قیمت فردا = قیمت امروز * e^(تغییرات تصادفی)
+            next_price = prices[-1] * np.exp(avg_daily_ret + daily_vol * np.random.normal())
+            prices.append(next_price)
+        simulation_df[i] = prices
+        if st.button("Run Risk Simulation (Monte Carlo)"):
+    st.subheader("🎲 Future Price Probability Simulation")
+    st.markdown("This model runs 100 random scenarios to predict the next 30 days based on historical volatility.")
+    
+    with st.spinner("Simulating 10,000 paths..."):
+        # اجرای شبیه‌سازی روی دیتای قیمت بسته شدن (Close)
+        sim_results = run_monte_carlo(df['Close'], prediction_days=30, simulations=100)
+        
+        # رسم نمودار حرفه‌ای با Plotly
+        fig_mc = go.Figure()
+        for i in range(sim_results.columns.size):
+            fig_mc.add_trace(go.Scatter(y=sim_results[i], mode='lines', 
+                                      line=dict(width=1), opacity=0.3, 
+                                      showlegend=False))
+        
+        fig_mc.update_layout(title="Monte Carlo: 30-Day Potential Paths",
+                             xaxis_title="Days into Future",
+                             yaxis_title="Potential Price ($)",
+                             template="plotly_dark")
+        st.plotly_chart(fig_mc, use_container_width=True)
+        
+        # تحلیل ریسک برای ارائه در دفاع
+        expected_price = sim_results.iloc[-1].mean()
+        var_5 = np.percentile(sim_results.iloc[-1], 5) # Value at Risk
+        
+        c1, c2 = st.columns(2)
+        c1.metric("Average Expected Price", f"${expected_price:.2f}")
+        c2.metric("Worst Case Scenario (5th Percentile)", f"${var_5:.2f}")
+    return simulation_df
+    
