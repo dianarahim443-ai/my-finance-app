@@ -136,3 +136,9 @@ hole=0.4,
         
     except Exception as e:
         st.error(f"Error: {e}. Please check the
+import streamlit as st
+import yfinance as yf
+import pandas as pd
+from pypfopt.efficient_frontier import EfficientFrontier
+from pypfopt import risk_models, expected_returns
+import plotly.express as px
