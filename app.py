@@ -122,3 +122,19 @@ def main():
 
 if __name__ == "__main__":
     main()
+import pandas as pd
+import numpy as np
+
+def run_backtest(data, signals, initial_capital=10000):
+    """
+    data: دیتای قیمت‌ها (Close price)
+    signals: سیگنال‌های تولید شده توسط مدل شما (1 برای خرید، -1 برای فروش)
+    """
+    positions = signals.shift(1) # معامله در قیمت روز بعد از سیگنال
+    returns = data.pct_change()
+    strategy_returns = returns * positions
+    
+    # محاسبه ثروت انباشته (Equity Curve)
+    equity_curve = initial_capital * (1 + strategy_returns).cumprod()
+    
+    return equity_curve, strategy_returns
