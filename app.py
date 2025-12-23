@@ -104,7 +104,7 @@ def main():
         st.header("🔍 Comprehensive Equity Intelligence")
         ticker = st.text_input("Enter Ticker:", "NVDA").upper()
         # --- بخش جدید: مقایسه چندگانه و Backtesting واقعی ---
-                st.divider()
+        st.divider()
                 st.header("🔬 Institutional Performance Attribution")
                 
                 with st.spinner("Calculating Academic Benchmarks..."):
