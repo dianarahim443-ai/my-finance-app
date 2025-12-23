@@ -103,7 +103,60 @@ def main():
     if page == "Global Stock 360°":
         st.header("🔍 Comprehensive Equity Intelligence")
         ticker = st.text_input("Enter Ticker:", "NVDA").upper()
-        
+        # --- بخش جدید: مقایسه چندگانه و Backtesting واقعی ---
+                st.divider()
+                st.header("🔬 Institutional Performance Attribution")
+                
+                with st.spinner("Calculating Academic Benchmarks..."):
+                    # ۱. دریافت دیتای بازار برای مقایسه (S&P 500)
+                    market_ticker = "^GSPC" 
+                    mkt_data = yf.download(market_ticker, period="1y")['Close']
+                    
+                    # ۲. هم‌راستا سازی داده‌ها
+                    combined_df = pd.concat([df['Close'], mkt_data], axis=1).dropna()
+                    combined_df.columns = ['Stock', 'Market']
+                    
+                    stock_rets = combined_df['Stock'].pct_change().dropna()
+                    mkt_rets = combined_df['Market'].pct_change().dropna()
+
+                    # ۳. محاسبه استراتژی AI (مثلاً تقاطع میانگین متحرک)
+                    # در اینجا سیگنال 1 یعنی خرید و 0 یعنی نقد بودن
+                    signals = np.where(combined_df['Stock'] > combined_df['Stock'].rolling(20).mean(), 1, 0)
+                    signals = pd.Series(signals, index=combined_df.index).shift(1).fillna(0)
+                    
+                    # ۴. محاسبه منحنی رشد سرمایه (Equity Curve)
+                    initial_investment = 10000
+                    ai_returns = stock_rets * signals
+                    ai_equity = initial_investment * (1 + ai_returns).cumprod()
+                    buy_hold_equity = initial_investment * (1 + stock_rets).cumprod()
+                    
+                    # ۵. نمایش متریک‌های مقایسه‌ای
+                    c1, c2, c3 = st.columns(3)
+                    
+                    # محاسبه سود نهایی
+                    ai_final = ai_equity.iloc[-1]
+                    bh_final = buy_hold_equity.iloc[-1]
+                    
+                    c1.metric("AI Strategy Final", f"${ai_final:,.0f}", f"{(ai_final/initial_investment-1):.2%}")
+                    c2.metric("Buy & Hold Final", f"${bh_final:,.0f}", f"{(bh_final/initial_investment-1):.2%}")
+                    
+                    # محاسبه بتا (Beta) برای CAPM
+                    beta = np.cov(stock_rets, mkt_rets)[0, 1] / np.var(mkt_rets)
+                    c3.metric("Systematic Risk (Beta)", f"{beta:.2f}")
+
+                    # ۶. نمودار مقایسه‌ای حرفه‌ای
+                    fig_comp = go.Figure()
+                    fig_comp.add_trace(go.Scatter(x=ai_equity.index, y=ai_equity, name='Diana AI Strategy', line=dict(color='gold', width=3)))
+                    fig_comp.add_trace(go.Scatter(x=buy_hold_equity.index, y=buy_hold_equity, name='Market Buy & Hold', line=dict(color='gray', dash='dash')))
+                    
+                    fig_comp.update_layout(title="Strategic Alpha: AI vs Passive Investing", template="plotly_dark", hovermode="x unified")
+                    st.plotly_chart(fig_comp, use_container_width=True)
+
+                    # ۷. تحلیل ریسک (Drawdown)
+                    st.subheader("📉 Risk Exposure Control")
+                    ai_dd = (ai_equity / ai_equity.cummax() - 1) * 100
+                    st.area_chart(ai_dd)
+                    st.caption("Max Drawdown shows the potential loss from peak to trough.")
         if st.button("Run Full Analysis"):
             stock = yf.Ticker(ticker)
             df = stock.history(period="1y")
