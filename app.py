@@ -105,3 +105,53 @@ def main():
 
 if __name__ == "__main__":
     main()
+# --- ماژول ۴: تحلیل ۳۶۰ درجه سهام بین‌المللی ---
+    elif menu == "Global Stock 360°":
+        st.header("🔍 Comprehensive Equity Intelligence")
+        
+        ticker = st.text_input("Enter International Ticker (e.g., TSLA, MSFT, BABA, Ferrari: RACE):", "TSLA").upper()
+        
+        if ticker:
+            stock_obj = yf.Ticker(ticker)
+            
+            # ۱. استخراج اطلاعات بنیادی (Fundamental Data)
+            with st.expander("🏢 Company Profile & Fundamentals", expanded=True):
+                info = stock_obj.info
+                c1, c2, c3, c4 = st.columns(4)
+                c1.metric("Market Cap", f"${info.get('marketCap', 0):,}")
+                c2.metric("P/E Ratio", info.get('trailingPE', 'N/A'))
+                c3.metric("52 Week High", f"${info.get('fiftyTwoWeekHigh', 'N/A')}")
+                c4.metric("Dividend Yield", f"{info.get('dividendYield', 0)*100:.2f}%")
+                st.write(f"**Description:** {info.get('longBusinessSummary', 'No description available.')[:500]}...")
+
+            # ۲. تحلیل تکنیکال (Technical Indicators)
+            st.subheader("📈 Technical Strategy Indicators")
+            df_tech = stock_obj.history(period="1y")
+            
+            # محاسبه میانگین‌های متحرک
+            df_tech['MA50'] = df_tech['Close'].rolling(window=50).mean()
+            df_tech['MA200'] = df_tech['Close'].rolling(window=200).mean()
+            
+            # محاسبه RSI (شاخص قدرت نسبی)
+            delta = df_tech['Close'].diff()
+            gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+            rs = gain / loss
+            df_tech['RSI'] = 100 - (100 / (1 + rs))
+
+            fig_tech = go.Figure()
+            fig_tech.add_trace(go.Scatter(x=df_tech.index, y=df_tech['Close'], name='Price', line=dict(color='white')))
+            fig_tech.add_trace(go.Scatter(x=df_tech.index, y=df_tech['MA50'], name='MA 50 (Short-term)', line=dict(color='orange')))
+            fig_tech.add_trace(go.Scatter(x=df_tech.index, y=df_tech['MA200'], name='MA 200 (Long-term)', line=dict(color='red')))
+            st.plotly_chart(fig_tech, use_container_width=True)
+
+            # ۳. نمایش RSI در یک نمودار کوچک
+            fig_rsi = px.line(df_tech, y='RSI', title="RSI (Relative Strength Index) - Overbought > 70 | Oversold < 30")
+            fig_rsi.add_hline(y=70, line_dash="dash", line_color="red")
+            fig_rsi.add_hline(y=30, line_dash="dash", line_color="green")
+            st.plotly_chart(fig_rsi, use_container_width=True)
+
+            # ۴. تحلیل صورت‌های مالی (Financials)
+            st.subheader("📊 Financial Health (Annual Net Income)")
+            income_stmt = stock_obj.financials.loc['Net Income']
+            st.bar_chart(income_stmt)
