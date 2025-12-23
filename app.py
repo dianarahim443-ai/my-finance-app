@@ -110,3 +110,36 @@ def main():
 
 if __name__ == "__main__":
     main()
+# --- بخش جدید: تحلیل سهام (Stock Intelligence) ---
+with st.expander("🔍 Global Stock Intelligence"):
+    ticker_input = st.text_input("Enter Stock Ticker (e.g., AAPL, TSLA, NVDA):", "AAPL").upper()
+    
+    if ticker_input:
+        stock = yf.Ticker(ticker_input)
+        
+        # دریافت اطلاعات کلی سهام
+        info = stock.info
+        col1, col2, col3, col4 = st.columns(4)
+        
+        try:
+            col1.metric("Current Price", f"${info.get('currentPrice', 'N/A')}")
+            col2.metric("Market Cap", f"{info.get('marketCap', 0):,}")
+            col3.metric("P/E Ratio", info.get('forwardPE', 'N/A'))
+            col4.metric("52 Week High", f"${info.get('fiftyTwoWeekHigh', 'N/A')}")
+            
+            # رسم نمودار قیمت سهام
+            hist = stock.history(period="1y")
+            fig_stock = px.area(hist, x=hist.index, y='Close', 
+                                title=f"{ticker_input} Price Action (Past Year)",
+                                color_discrete_sequence=['#FF4B4B'])
+            st.plotly_chart(fig_stock, use_container_width=True)
+
+            # تحلیل فاندامنتال (تحلیل سودآوری)
+            st.subheader(f"Financial Health: {ticker_input}")
+            fundamentals = stock.financials.loc['Net Income'] if 'Net Income' in stock.financials.index else None
+            if fundamentals is not None:
+                fig_fin = px.bar(fundamentals, title="Annual Net Income Trend")
+                st.plotly_chart(fig_fin, use_container_width=True)
+                
+        except Exception as e:
+            st.error(f"Could not fetch data for {ticker_input}. Please check the ticker symbol.")
