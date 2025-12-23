@@ -11,6 +11,26 @@ from datetime import datetime
 st.set_page_config(page_title="Diana Finance AI | Academic Research", layout="wide")
 
 # --- 2. Financial Logic & Functions ---
+
+def get_ai_reasoning(ticker, combined_df):
+    """Generates human-readable explanations for AI decisions."""
+    latest_price = combined_df['Stock'].iloc[-1]
+    sma_20 = combined_df['Stock'].rolling(20).mean().iloc[-1]
+    volatility = combined_df['Stock'].pct_change().std() * np.sqrt(252)
+    
+    reasons = []
+    if latest_price > sma_20:
+        reasons.append(f"• Price (${latest_price:.2f}) is above 20-day SMA (${sma_20:.2f}), indicating a **Bullish Trend**.")
+    else:
+        reasons.append(f"• Price (${latest_price:.2f}) is below 20-day SMA (${sma_20:.2f}), suggesting **Bearish Momentum**.")
+        
+    if volatility > 0.30:
+        reasons.append(f"• High Annualized Volatility ({volatility:.1%}) detected. Model suggests **Caution** (High Risk).")
+    else:
+        reasons.append(f"• Volatility ({volatility:.1%}) is stable, supporting a **Steady Accumulation** strategy.")
+        
+    return reasons
+
 def calculate_metrics(equity_curve, strategy_returns):
     # Risk-free rate (European Central Bank / 10Y Bunds approx)
     rf = 0.02 / 252 
@@ -70,14 +90,18 @@ def main():
     for i, (name, val) in enumerate(metrics.items()):
         m_cols[i].metric(name, f"{val[0]:,.2f}", f"{val[1]:.2f}%")
 
-    st.sidebar.title("🔬 Research Methodology")with st.sidebar.expander("Academic Methodology"):
-    st.write("""
-    **Models used:**
-    - Time-Series: Facebook Prophet (Additive Regressive Model)
-    - Risk: Geometric Brownian Motion (GBM)
-    - Strategy: Momentum-based SMA Crossover
-    - Metrics: Log-returns for stationarity.
-    """)
+    # Sidebar Navigation & Methodology
+    st.sidebar.title("🔬 Research Methodology")
+    
+    with st.sidebar.expander("Academic Methodology"):
+        st.write("""
+        **Models used:**
+        - Time-Series: Facebook Prophet
+        - Risk: Geometric Brownian Motion (GBM)
+        - Strategy: Momentum SMA Crossover
+        - Metrics: Sharpe Ratio & Max Drawdown.
+        """)
+        
     page = st.sidebar.radio("Module Selector:", ["Global Stock 360°", "AI Wealth Prediction", "Personal Finance AI"])
 
     if page == "Global Stock 360°":
@@ -95,8 +119,7 @@ def main():
                     combined = pd.concat([stock_data['Close'], market_data['Close']], axis=1).dropna()
                     combined.columns = ['Stock', 'Market']
                     
-                    # 1. Strategy Logic (Moving Average Crossover)
-                    # Academic Note: Using 20-day SMA as a signal for AI Agent
+                    # 1. Strategy Logic
                     combined['Signal'] = np.where(combined['Stock'] > combined['Stock'].rolling(20).mean(), 1, 0)
                     combined['Strategy_Returns'] = combined['Stock'].pct_change() * combined['Signal'].shift(1)
                     
@@ -104,33 +127,34 @@ def main():
                     initial_cap = 10000
                     ai_equity = initial_cap * (1 + combined['Strategy_Returns'].fillna(0)).cumprod()
                     bh_equity = initial_cap * (1 + combined['Stock'].pct_change().fillna(0)).cumprod()
-
-st.subheader("🤖 AI Decision Reasoning")
-with st.expander("See why Diana issued this signal", expanded=True):
-    explanation = get_ai_reasoning(ticker, combined)
-    for line in explanation:
-        st.write(line)
-    
-    st.caption(f"Analysis based on technical indicators and volatility regime for {ticker}.")
+                    
                     # Metrics calculation
                     ai_ret, ai_sharpe, ai_dd = calculate_metrics(ai_equity, combined['Strategy_Returns'].fillna(0))
                     bh_ret, _, bh_dd = calculate_metrics(bh_equity, combined['Stock'].pct_change().fillna(0))
                     
-                    # 3. Display Metrics
+                    # 3. AI Reasoning Display
+                    st.subheader("🤖 AI Decision Reasoning")
+                    with st.expander("See why Diana issued this signal", expanded=True):
+                        explanation = get_ai_reasoning(ticker, combined)
+                        for line in explanation:
+                            st.write(line)
+                        st.caption(f"Analysis based on technical indicators and volatility regime for {ticker}.")
+
+                    # 4. Display Metrics
                     st.divider()
                     col1, col2, col3 = st.columns(3)
                     col1.metric("AI Strategy Return", f"{ai_ret:.2f}%", f"{(ai_ret-bh_ret):.2f}% vs Market")
                     col2.metric("Sharpe Ratio (Risk Adj.)", f"{ai_sharpe:.2f}")
                     col3.metric("Max Drawdown", f"{ai_dd:.2f}%")
 
-                    # 4. Interactive Plotting
+                    # 5. Interactive Plotting
                     fig_perf = go.Figure()
                     fig_perf.add_trace(go.Scatter(x=ai_equity.index, y=ai_equity, name='Diana AI Strategy', line=dict(color='#FFD700', width=3)))
                     fig_perf.add_trace(go.Scatter(x=bh_equity.index, y=bh_equity, name='Benchmark (Buy & Hold)', line=dict(color='gray', dash='dash')))
                     fig_perf.update_layout(title="Equity Curve: Strategy vs Passive Market", template="plotly_dark", hovermode="x unified")
                     st.plotly_chart(fig_perf, use_container_width=True)
 
-                    # 5. Monte Carlo Simulation
+                    # 6. Monte Carlo Simulation
                     st.divider()
                     st.subheader("🎲 Monte Carlo Risk Forecasting")
                     sim_results = run_monte_carlo(combined['Stock'])
@@ -143,11 +167,10 @@ with st.expander("See why Diana issued this signal", expanded=True):
                     var_5 = np.percentile(sim_results.iloc[-1], 5)
                     
                     st.write(f"**Statistical Forecast (30 Days):** Expected Price: ${expected_p:.2f} | Value at Risk (VaR 95%): ${var_5:.2f}")
-                    fig_mc.update_layout(title="Geometric Brownian Motion: 50 Possible Price Paths", template="plotly_dark")
+                    fig_mc.update_layout(title="Geometric Brownian Motion Paths", template="plotly_dark")
                     st.plotly_chart(fig_mc, use_container_width=True)
-                    
                 else:
-                    st.error("Ticker not found. Please check the symbol.")
+                    st.error("Ticker not found.")
 
     elif page == "AI Wealth Prediction":
         st.header("🔮 Time-Series Forecasting (Prophet)")
@@ -175,24 +198,8 @@ with st.expander("See why Diana issued this signal", expanded=True):
             st.info("Module under construction: Integration with LLM for spending classification.")
 
     st.sidebar.divider()
-    st.sidebar.info("📌 **Defense Tip:** Focus on the 'Sharpe Ratio' and 'Max Drawdown' when explaining the Backtesting results to the committee.")
+    st.sidebar.info("📌 **Defense Tip:** Explain Alpha generation and Risk-Adjusted returns using the Sharpe Ratio.")
     st.sidebar.caption(f"Last updated: {datetime.now().strftime('%Y-%m-%d')}")
-def get_ai_reasoning(ticker, combined_df):
-    latest_price = combined_df['Stock'].iloc[-1]
-    sma_20 = combined_df['Stock'].rolling(20).mean().iloc[-1]
-    volatility = combined_df['Stock'].pct_change().std() * np.sqrt(252)
-    
-    reasons = []
-    if latest_price > sma_20:
-        reasons.append(f"• Price is above 20-day SMA (${sma_20:.2f}), indicating a **Bullish Trend**.")
-    else:
-        reasons.append(f"• Price is below 20-day SMA (${sma_20:.2f}), suggesting **Bearish Momentum**.")
-        
-    if volatility > 0.30:
-        reasons.append("• High Annualized Volatility detected. Model suggests **Caution** (High Risk).")
-    else:
-        reasons.append("• Volatility is within stable limits, supporting a **Steady Accumulation** strategy.")
-        
-    return reasons
+
 if __name__ == "__main__":
     main()
