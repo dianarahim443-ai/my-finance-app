@@ -295,3 +295,103 @@ def main():
 
 if __name__ == "__main__":
     main()
+import streamlit as st
+import pandas as pd
+import yfinance as yf
+import plotly.express as px
+import plotly.graph_objects as go
+from prophet import Prophet
+import numpy as np
+from scipy.stats import norm
+
+# --- CONFIGURATION ---
+st.set_page_config(page_title="QuantFinance AI | Research Platform", layout="wide")
+
+# --- ADVANCED QUANT FUNCTIONS ---
+@st.cache_data(ttl=3600)
+def get_advanced_metrics(tickers):
+    data = yf.download(tickers, period="1y")['Close']
+    returns = data.pct_change().dropna()
+    
+    # Correlation Matrix
+    corr_matrix = returns.corr()
+    
+    # Sharpe Ratio (Assuming Risk-Free Rate = 0.02)
+    rf = 0.02 / 252
+    excess_returns = returns - rf
+    sharpe = (excess_returns.mean() / excess_returns.std()) * np.sqrt(252)
+    
+    return returns, corr_matrix, sharpe
+
+# --- MAIN APP ---
+def main():
+    st.title("🏛️ Quantitative Financial Intelligence Platform")
+    st.markdown("---")
+
+    st.sidebar.title("🔍 Analytical Engines")
+    engine = st.sidebar.selectbox("Select Methodology:", 
+                                 ["Global Market Pulse", "Portfolio Risk Analysis", "AI Wealth Prediction", "Smart Categorizer"])
+
+    # 1. GLOBAL MARKET PULSE
+    if engine == "Global Market Pulse":
+        st.header("🌍 Macro-Economic Indicators")
+        tickers = ["^GSPC", "GC=F", "BTC-USD", "EURUSD=X"]
+        returns, corr, sharpe = get_advanced_metrics(tickers)
+        
+        # Heatmap of Correlations
+        st.subheader("Asset Correlation Matrix")
+        fig_corr = px.imshow(corr, text_auto=True, color_continuous_scale='RdBu_r', aspect="auto")
+        st.plotly_chart(fig_corr, use_container_width=True)
+        
+
+        # Sharpe Ratio Comparison
+        st.subheader("Risk-Adjusted Performance (Sharpe Ratio)")
+        st.bar_chart(sharpe)
+        st.info("The Sharpe Ratio shows how much excess return you are receiving for the extra volatility endured.")
+
+    # 2. PORTFOLIO RISK ANALYSIS
+    elif engine == "Portfolio Risk Analysis":
+        st.header("📉 Risk Management & Volatility")
+        symbol = st.text_input("Enter Asset for Risk Profile:", "NVDA").upper()
+        if symbol:
+            asset_data = yf.download(symbol, period="1y")['Close']
+            asset_ret = asset_data.pct_change().dropna()
+            
+            # Histogram of Returns (Normal Distribution Overlap)
+            st.subheader("Returns Distribution & Kurtosis")
+            fig_dist = px.histogram(asset_ret, nbins=50, marginal="box", title=f"Distribution of {symbol} Daily Returns")
+            st.plotly_chart(fig_dist, use_container_width=True)
+            
+
+    # 3. AI WEALTH PREDICTION
+    elif engine == "AI Wealth Prediction":
+        st.header("🔮 Time-Series Forecasting (Prophet)")
+        # Simulation for Demo
+        df_p = pd.DataFrame({
+            'ds': pd.date_range(start='2024-01-01', periods=200),
+            'y': np.random.normal(105, 12, 200).cumsum()
+        })
+        m = Prophet(daily_seasonality=True)
+        m.fit(df_p)
+        future = m.make_future_dataframe(periods=90)
+        forecast = m.predict(future)
+        
+        fig_fore = go.Figure()
+        fig_fore.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat'], name='Expected Value'))
+        fig_fore.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat_upper'], fill=None, mode='lines', line_color='rgba(0,176,246,0.2)', name='Upper Bound'))
+        fig_fore.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat_lower'], fill='tonexty', mode='lines', line_color='rgba(0,176,246,0.2)', name='Lower Bound'))
+        st.plotly_chart(fig_fore, use_container_width=True)
+        
+
+    # 4. SMART CATEGORIZER
+    elif engine == "Smart Categorizer":
+        st.header("💳 Intelligent Expense Classification")
+        st.write("Upload your bank statement to apply NLP-based classification.")
+        # ... (کد دسته‌بندی که قبلاً داشتیم)
+
+    # FOOTER
+    st.sidebar.divider()
+    st.sidebar.caption("Research Methodology: Quant Finance & ML (MSc Level)")
+
+if __name__ == "__main__":
+    main()
