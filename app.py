@@ -32,9 +32,8 @@ def get_ai_reasoning(ticker, combined_df):
     return reasons
 
 def calculate_metrics(equity_curve, strategy_returns):
-    # Risk-free rate (European Central Bank / 10Y Bunds approx)
+    # Risk-free rate (approx 2%)
     rf = 0.02 / 252 
-    
     total_return = (equity_curve.iloc[-1] / equity_curve.iloc[0] - 1) * 100
     
     # Sharpe Ratio Calculation
@@ -99,7 +98,7 @@ def main():
         - Time-Series: Facebook Prophet
         - Risk: Geometric Brownian Motion (GBM)
         - Strategy: Momentum SMA Crossover
-        - Metrics: Sharpe Ratio & Max Drawdown.
+        - Behavioral: Expense Categorization AI
         """)
         
     page = st.sidebar.radio("Module Selector:", ["Global Stock 360°", "AI Wealth Prediction", "Personal Finance AI"])
@@ -110,63 +109,51 @@ def main():
         
         if st.button("Run Full Institutional Analysis"):
             with st.spinner("Fetching data and running simulations..."):
-                # Data Retrieval
                 stock_data = yf.download(ticker, period="1y")
                 market_data = yf.download("^GSPC", period="1y")
                 
                 if not stock_data.empty:
-                    # Align Data
                     combined = pd.concat([stock_data['Close'], market_data['Close']], axis=1).dropna()
                     combined.columns = ['Stock', 'Market']
                     
-                    # 1. Strategy Logic
                     combined['Signal'] = np.where(combined['Stock'] > combined['Stock'].rolling(20).mean(), 1, 0)
                     combined['Strategy_Returns'] = combined['Stock'].pct_change() * combined['Signal'].shift(1)
                     
-                    # 2. Performance Calculation
                     initial_cap = 10000
                     ai_equity = initial_cap * (1 + combined['Strategy_Returns'].fillna(0)).cumprod()
                     bh_equity = initial_cap * (1 + combined['Stock'].pct_change().fillna(0)).cumprod()
                     
-                    # Metrics calculation
                     ai_ret, ai_sharpe, ai_dd = calculate_metrics(ai_equity, combined['Strategy_Returns'].fillna(0))
                     bh_ret, _, bh_dd = calculate_metrics(bh_equity, combined['Stock'].pct_change().fillna(0))
                     
-                    # 3. AI Reasoning Display
                     st.subheader("🤖 AI Decision Reasoning")
                     with st.expander("See why Diana issued this signal", expanded=True):
                         explanation = get_ai_reasoning(ticker, combined)
                         for line in explanation:
                             st.write(line)
-                        st.caption(f"Analysis based on technical indicators and volatility regime for {ticker}.")
 
-                    # 4. Display Metrics
                     st.divider()
                     col1, col2, col3 = st.columns(3)
-                    col1.metric("AI Strategy Return", f"{ai_ret:.2f}%", f"{(ai_ret-bh_ret):.2f}% vs Market")
-                    col2.metric("Sharpe Ratio (Risk Adj.)", f"{ai_sharpe:.2f}")
+                    col1.metric("AI Strategy Return", f"{ai_ret:.2f}%", f"{(ai_ret-bh_ret):.2f}% Alpha")
+                    col2.metric("Sharpe Ratio", f"{ai_sharpe:.2f}")
                     col3.metric("Max Drawdown", f"{ai_dd:.2f}%")
 
-                    # 5. Interactive Plotting
                     fig_perf = go.Figure()
                     fig_perf.add_trace(go.Scatter(x=ai_equity.index, y=ai_equity, name='Diana AI Strategy', line=dict(color='#FFD700', width=3)))
-                    fig_perf.add_trace(go.Scatter(x=bh_equity.index, y=bh_equity, name='Benchmark (Buy & Hold)', line=dict(color='gray', dash='dash')))
-                    fig_perf.update_layout(title="Equity Curve: Strategy vs Passive Market", template="plotly_dark", hovermode="x unified")
+                    fig_perf.add_trace(go.Scatter(x=bh_equity.index, y=bh_equity, name='Market (Buy & Hold)', line=dict(color='gray', dash='dash')))
+                    fig_perf.update_layout(title="Equity Curve Analysis", template="plotly_dark")
                     st.plotly_chart(fig_perf, use_container_width=True)
 
-                    # 6. Monte Carlo Simulation
                     st.divider()
                     st.subheader("🎲 Monte Carlo Risk Forecasting")
                     sim_results = run_monte_carlo(combined['Stock'])
-                    
                     fig_mc = go.Figure()
                     for i in range(sim_results.columns.size):
                         fig_mc.add_trace(go.Scatter(y=sim_results[i], mode='lines', opacity=0.1, showlegend=False))
                     
                     expected_p = sim_results.iloc[-1].mean()
                     var_5 = np.percentile(sim_results.iloc[-1], 5)
-                    
-                    st.write(f"**Statistical Forecast (30 Days):** Expected Price: ${expected_p:.2f} | Value at Risk (VaR 95%): ${var_5:.2f}")
+                    st.write(f"**Statistical Forecast (30 Days):** Expected Price: ${expected_p:.2f} | VaR (95%): ${var_5:.2f}")
                     fig_mc.update_layout(title="Geometric Brownian Motion Paths", template="plotly_dark")
                     st.plotly_chart(fig_mc, use_container_width=True)
                 else:
@@ -179,7 +166,6 @@ def main():
             df_raw = yf.download(symbol, period="2y").reset_index()
             df_p = df_raw[['Date', 'Close']].rename(columns={'Date': 'ds', 'Close': 'y'})
             df_p['ds'] = df_p['ds'].dt.tz_localize(None)
-            
             m = Prophet(daily_seasonality=True)
             m.fit(df_p)
             future = m.make_future_dataframe(periods=30)
@@ -188,17 +174,49 @@ def main():
             fig_f = go.Figure()
             fig_f.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat'], name='AI Trend', line=dict(color='cyan')))
             fig_f.add_trace(go.Scatter(x=df_p['ds'], y=df_p['y'], name='Actual Price', mode='markers', marker=dict(size=2)))
-            fig_f.update_layout(title=f"30-Day Predictive Trend for {symbol}", template="plotly_dark")
+            fig_f.update_layout(title=f"30-Day Predictive Trend: {symbol}", template="plotly_dark")
             st.plotly_chart(fig_f, use_container_width=True)
 
-    ge == "Personal Finance AI":
-        st.header("💳 Financial Behavior Analysis")
+    elif page == "Personal Finance AI":
+        st.header("💳 Expense Intelligence & Behavioral Analysis")
         uploaded = st.file_uploader("Upload your transaction history (CSV)", type="csv")
         if uploaded:
-            st.info("Module under construction: Integration with LLM for spending classification.")
+            try:
+                df_user = pd.read_csv(uploaded)
+                if 'Description' in df_user.columns and 'Amount' in df_user.columns:
+                    def categorize(desc):
+                        desc = str(desc).lower()
+                        if any(w in desc for w in ['amazon', 'shop', 'buy']): return 'Shopping'
+                        if any(w in desc for w in ['uber', 'taxi', 'gas', 'snapp']): return 'Transport'
+                        if any(w in desc for w in ['food', 'cafe', 'restaurant']): return 'Dining'
+                        if any(w in desc for w in ['rent', 'bill', 'electric']): return 'Bills'
+                        return 'Others'
+                    
+                    df_user['Category'] = df_user['Description'].apply(categorize)
+                    df_user['Amount'] = pd.to_numeric(df_user['Amount']).abs()
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.plotly_chart(px.pie(df_user, values='Amount', names='Category', hole=0.4, template="plotly_dark", color_discrete_sequence=px.colors.sequential.Gold_r), use_container_width=True)
+                    with col2:
+                        st.subheader("Top Expenses")
+                        st.table(df_user.sort_values(by='Amount', ascending=False).head(5)[['Description', 'Amount', 'Category']])
+                    
+                    st.divider()
+                    st.subheader("🤖 AI Behavioral Insight")
+                    total_spent = df_user['Amount'].sum()
+                    shopping_pct = (df_user[df_user['Category'] == 'Shopping']['Amount'].sum() / total_spent) * 100 if total_spent > 0 else 0
+                    if shopping_pct > 30:
+                        st.warning(f"AI Observation: High Shopping Spend detected ({shopping_pct:.1f}%). Reallocating 10% to investments could improve your long-term wealth.")
+                    else:
+                        st.success("AI Observation: Your spending pattern is highly optimized. You have a strong propensity to save.")
+                else:
+                    st.error("CSV must contain 'Description' and 'Amount' columns.")
+            except Exception as e:
+                st.error(f"Error processing file: {e}")
 
     st.sidebar.divider()
-    st.sidebar.info("📌 **Defense Tip:** Explain Alpha generation and Risk-Adjusted returns using the Sharpe Ratio.")
+    st.sidebar.info("📌 **Defense Tip:** Focus on Alpha and the Sharpe Ratio to prove your AI's value.")
     st.sidebar.caption(f"Last updated: {datetime.now().strftime('%Y-%m-%d')}")
 
 if __name__ == "__main__":
