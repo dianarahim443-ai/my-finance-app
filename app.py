@@ -11,7 +11,22 @@ from datetime import datetime
 st.set_page_config(page_title="AI Finance & Research Platform", layout="wide")
 
 # --- 2. توابع محاسباتی و منطق مالی ---
+def calculate_asset_pricing_models(stock_returns, market_returns):
+    # فرض بر نرخ بهره بدون ریسک (Risk-Free Rate) 0.02 برای اروپا
+    rf = 0.02 / 252 
+    
+    # 1. مدل CAPM
+    excess_stock = stock_returns - rf
+    excess_market = market_returns - rf
+    
+    # محاسبه Beta با رگرسیون ساده
+    beta = np.cov(excess_stock, excess_market)[0, 1] / np.var(excess_market)
+    capm_expected = rf + beta * (excess_market.mean())
+    
+    return beta, capm_expected
 
+# نکته آکادمیک: برای Fama-French باید داده‌های SMB و HML را از سایت Kenneth French بگیرید.
+# در اینجا ما Alpha (سود مازاد بر مدل) را به عنوان معیار اصلی نشان می‌دهیم.
 @st.cache_data(ttl=3600)
 def get_global_metrics():
     tickers = {"Gold": "GC=F", "S&P 500": "^GSPC", "Bitcoin": "BTC-USD", "EUR/USD": "EURUSD=X"}
