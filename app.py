@@ -313,3 +313,159 @@ def main():
 
 if __name__ == "__main__":
     main()
+import streamlit as st
+import pandas as pd
+import yfinance as yf
+import plotly.express as px
+import plotly.graph_objects as go
+from prophet import Prophet
+import numpy as np
+from datetime import datetime
+from scipy.stats import norm
+
+# ==========================================
+# 1. CORE THEME & CSS (Institutional Gold)
+# ==========================================
+st.set_page_config(page_title="Diana Finance AI | Defense Edition", layout="wide")
+
+st.markdown("""
+    <style>
+    .stApp { background-color: #050505; color: #FFFFFF; }
+    .main .block-container { 
+        background: rgba(15, 15, 15, 0.98); 
+        border-radius: 35px; border: 1px solid #333; padding: 50px;
+    }
+    h1 { color: #FFD700 !important; font-weight: 900; font-size: 4rem !important; }
+    h2, h3 { color: #FFD700 !important; border-left: 5px solid #FFD700; padding-left: 15px; }
+    .stMetric { background: #111; border-top: 4px solid #FFD700; padding: 20px; border-radius: 15px; }
+    .agent-box { background: rgba(255, 215, 0, 0.05); padding: 25px; border-radius: 20px; border: 1px dashed #FFD700; }
+    </style>
+    """, unsafe_allow_html=True)
+
+# ==========================================
+# 2. QUANT ENGINE & AGENT LOGIC
+# ==========================================
+
+class SovereignAgent:
+    @staticmethod
+    def get_market_sentiment(ticker_obj):
+        """Analyses fundamental metrics to give a professional verdict."""
+        try:
+            info = ticker_obj.info
+            pe = info.get('forwardPE', 'N/A')
+            recommendation = info.get('recommendationKey', 'N/A').upper()
+            target_price = info.get('targetMeanPrice', 'N/A')
+            return pe, recommendation, target_price
+        except: return "N/A", "NEUTRAL", "N/A"
+
+    @staticmethod
+    def get_risk_metrics(returns):
+        mu, sigma = returns.mean(), returns.std()
+        sharpe = (mu / sigma) * np.sqrt(252) if sigma > 0 else 0
+        var_95 = norm.ppf(0.05, mu, sigma) * 100
+        cum = (1 + returns).cumprod()
+        mdd = ((cum / cum.cummax()) - 1).min() * 100
+        return {"Sharpe": sharpe, "MDD": mdd, "VaR": var_95}
+
+# ==========================================
+# 3. INTERFACE MODULES
+# ==========================================
+
+def render_risk_framework():
+    st.header("🔬 Strategic Risk Framework")
+    st.markdown("تحلیل ریسک در این سیستم بر پایه مدل‌های تصادفی و تئوری احتمالات مدرن استوار است.")
+    
+    col_a, col_b = st.columns(2)
+    with col_a:
+        st.subheader("I. Geometric Brownian Motion")
+        st.latex(r"S_{t+dt} = S_t \exp\left( (\mu - \frac{\sigma^2}{2})dt + \sigma \sqrt{dt} Z \right)")
+        st.write("این فرمول برای شبیه‌سازی مسیرهای احتمالی قیمت در آینده و محاسبه ریسک دم (Tail Risk) استفاده می‌شود.")
+        
+        
+    with col_b:
+        st.subheader("II. Parametric Value at Risk (VaR)")
+        st.latex(r"VaR_{95\%} = \mu + \sigma \cdot 1.645")
+        st.write("این معیار نشان‌دهنده حداکثر ضرر احتمالی در ۹۵٪ مواقع در یک روز معاملاتی است.")
+        
+
+def render_equity_agent():
+    st.header("📈 Equity Intelligence & AI Agent")
+    ticker_sym = st.text_input("Enter Ticker (e.g., RACE for Ferrari, ENI.MI for Eni):", "RACE").upper()
+    
+    if st.button("Run Deep Analysis"):
+        with st.spinner("Agent is gathering intelligence..."):
+            tk = yf.Ticker(ticker_sym)
+            raw = tk.history(period="2y")
+            if not raw.empty:
+                prices = raw['Close']
+                returns = prices.pct_change().dropna()
+                metrics = SovereignAgent.get_risk_metrics(returns)
+                pe, rec, target = SovereignAgent.get_market_sentiment(tk)
+                
+                # --- KPI Metrics ---
+                k1, k2, k3, k4 = st.columns(4)
+                k1.metric("Current Price", f"${prices.iloc[-1]:,.2f}")
+                k2.metric("Sharpe Ratio", f"{metrics['Sharpe']:.2f}")
+                k3.metric("Max Drawdown", f"{metrics['MDD']:.2f}%")
+                k4.metric("VaR 95%", f"{metrics['VaR']:.2f}%")
+                
+                # --- AI Agent Verdict Box ---
+                st.markdown(f"""<div class="agent-box">
+                    <h3>🕵️ Sovereign Agent Verdict: {rec}</h3>
+                    <p><b>Forward P/E:</b> {pe} | <b>Analyst Target Price:</b> {target}</p>
+                    <p>بر اساس تحلیل نوسانات و نسبت شارپ، این دارایی دارای ریسک { "بالا" if metrics['MDD'] < -20 else "متوسط" } 
+                    و بازدهی تعدیل شده { "بهینه" if metrics['Sharpe'] > 1 else "غیر بهینه" } می‌باشد.</p>
+                </div>""", unsafe_allow_html=True)
+                
+                # --- Price Chart ---
+                fig = px.line(prices, title=f"{ticker_sym} - Institutional Trajectory", template="plotly_dark")
+                fig.update_traces(line_color="#FFD700", line_width=3)
+                st.plotly_chart(fig, use_container_width=True)
+
+def render_wealth_advisor():
+    st.header("💳 AI Behavioral Wealth Advisor")
+    st.markdown("تحلیل تخصصی جریان نقدینگی و دسته‌بندی رفتاری سرمایه.")
+    
+    df = pd.DataFrame([
+        {"Description": "Institutional Income", "Amount": 15000, "Category": "Income"},
+        {"Description": "Mortgage/Rent", "Amount": -4000, "Category": "Fixed"},
+        {"Description": "Equity Buy (Wealth)", "Amount": -3500, "Category": "Wealth"},
+        {"Description": "Lifestyle/Dining", "Amount": -1500, "Category": "Wants"},
+        {"Description": "Emergency Savings", "Amount": -1000, "Category": "Wealth"}
+    ])
+    
+    df = st.data_editor(df, num_rows="dynamic", use_container_width=True)
+    df["Amount"] = pd.to_numeric(df["Amount"], errors="coerce").fillna(0)
+    outflows = df[df["Amount"] < 0].copy()
+    outflows["Abs"] = outflows["Amount"].abs()
+    
+    if not outflows.empty:
+        c1, c2 = st.columns([1.5, 1])
+        with c1:
+            st.plotly_chart(px.pie(outflows, values='Abs', names='Category', hole=0.6, 
+                                 template="plotly_dark", title="Outflow Audit",
+                                 color_discrete_sequence=px.colors.sequential.YlOrBr), use_container_width=True)
+        with c2:
+            w_sum = outflows[outflows['Category'] == 'Wealth']['Abs'].sum()
+            w_rate = (w_sum / outflows['Abs'].sum()) * 100
+            st.metric("Wealth Creation Rate", f"{w_rate:.1f}%", delta=f"{w_rate-20:.1f}%")
+            if w_rate < 20: st.error("هشدار: نرخ انباشت سرمایه کمتر از حد استاندارد است.")
+            else: st.success("وضعیت عالی: تخصیص سرمایه در سطح حرفه‌ای.")
+
+# ==========================================
+# 4. MASTER NAVIGATOR
+# ==========================================
+
+def main():
+    st.sidebar.title("💎 Diana Sovereign")
+    nav = st.sidebar.radio("Navigation:", 
+        ["Risk Framework", "Equity Intelligence", "Wealth Advisor"])
+    
+    if nav == "Risk Framework": render_risk_framework()
+    elif nav == "Equity Intelligence": render_equity_intel()
+    elif nav == "Wealth Advisor": render_wealth_advisor()
+    
+    st.sidebar.divider()
+    st.sidebar.caption(f"Server Time: {datetime.now().strftime('%H:%M:%S')}")
+
+if __name__ == "__main__": main()
