@@ -8,9 +8,10 @@ from prophet.plot import plot_components_plotly
 import numpy as np
 from datetime import datetime
 
-# --- 1. تنظیمات سیستمی و ظاهر فوق حرفه‌ای ---
+# --- 1. SYSTEM & INTERFACE CONFIGURATION ---
 st.set_page_config(page_title="Diana Finance AI | Institutional Research", layout="wide")
 
+# Advanced CSS for high-end FinTech UI
 st.markdown("""
     <style>
     .stApp {
@@ -19,22 +20,25 @@ st.markdown("""
         background-size: cover;
     }
     .main .block-container {
-        background: rgba(10, 10, 10, 0.9);
+        background: rgba(10, 10, 10, 0.92);
         border-radius: 25px;
         padding: 50px;
         border: 1px solid #444;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        box-shadow: 0 10px 40px rgba(0,0,0,0.7);
     }
-    h1, h2, h3 { color: #FFD700 !important; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    .stMetric { background: rgba(255,255,255,0.03); padding: 20px; border-radius: 15px; border-bottom: 3px solid #FFD700; }
+    h1, h2, h3 { color: #FFD700 !important; font-family: 'Inter', sans-serif; font-weight: 800; }
+    .stMetric { background: rgba(255,255,255,0.03); padding: 20px; border-radius: 15px; border-left: 4px solid #FFD700; }
+    .stTabs [data-baseweb="tab-list"] { gap: 20px; }
+    .stTabs [data-baseweb="tab"] { background-color: transparent; border-radius: 4px; padding: 10px 20px; color: white; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. توابع محاسبات سنگین (کوانت و هوش مصنوعی) ---
+# --- 2. QUANTITATIVE & ANALYTICAL ENGINES ---
 
 @st.cache_data(ttl=3600)
-def get_market_pulse():
-    tickers = {"S&P 500": "^GSPC", "Nasdaq 100": "^IXIC", "Gold": "GC=F", "Bitcoin": "BTC-USD"}
+def get_global_pulse():
+    """Live Market Watchlist with MultiIndex Fix"""
+    tickers = {"S&P 500": "^GSPC", "Nasdaq 100": "^IXIC", "Gold": "GC=F", "Bitcoin": "BTC-USD", "EUR/USD": "EURUSD=X"}
     data = {}
     for name, sym in tickers.items():
         try:
@@ -47,23 +51,24 @@ def get_market_pulse():
         except: data[name] = (0, 0)
     return data
 
-def run_backtest(data):
-    # استراتژی تقاطع طلایی (Golden Cross)
-    fast = data.rolling(window=20).mean()
-    slow = data.rolling(window=50).mean()
-    signal = np.where(fast > slow, 1, 0)
+def run_institutional_backtest(data):
+    """Trend-Following Momentum Strategy"""
+    fast_sma = data.rolling(window=20).mean()
+    slow_sma = data.rolling(window=50).mean()
+    signal = np.where(fast_sma > slow_sma, 1, 0)
     returns = data.pct_change()
     strat_returns = returns * pd.Series(signal).shift(1).values
     equity_curve = 10000 * (1 + strat_returns.fillna(0)).cumprod()
     
-    # شاخص‌های ریسک آکادمیک
-    rf = 0.02 / 252 # نرخ بدون ریسک فرض شده
+    # Statistical Risk Metrics
+    rf = 0.02 / 252 
     excess = strat_returns.fillna(0) - rf
     sharpe = np.sqrt(252) * excess.mean() / excess.std() if excess.std() != 0 else 0
-    mdd = ((equity_curve / equity_curve.cummax()) - 1).min() * 100
-    return equity_curve, sharpe, mdd
+    max_dd = ((equity_curve / equity_curve.cummax()) - 1).min() * 100
+    return equity_curve, sharpe, max_dd
 
-def monte_carlo(last_price, mu, sigma, days=30, sims=100):
+def run_monte_carlo(last_price, mu, sigma, days=30, sims=100):
+    """Stochastic Simulation using Geometric Brownian Motion"""
     simulation_df = pd.DataFrame()
     for i in range(sims):
         prices = [last_price]
@@ -72,142 +77,149 @@ def monte_carlo(last_price, mu, sigma, days=30, sims=100):
         simulation_df[i] = prices
     return simulation_df
 
-# --- 3. بدنه اصلی اپلیکیشن ---
+# --- 3. CORE APPLICATION INTERFACE ---
 
 def main():
     st.title("🏛️ Diana Finance: Institutional AI Research")
-    st.write("پلتفرم جامع تحلیل بازارهای سرمایه و مدیریت ثروت مبتنی بر هوش مصنوعی")
+    st.markdown("##### *Advanced Quantitative Modeling & Neural Forecasting Platform*")
     
-    # نمایش وضعیت بازار در هدر
-    pulse = get_market_pulse()
+    # Global Header Pulse
+    pulse = get_global_pulse()
     p_cols = st.columns(len(pulse))
     for i, (name, val) in enumerate(pulse.items()):
         p_cols[i].metric(name, f"{val[0]:,.2f}", f"{val[1]:.2f}%")
-    
     st.divider()
 
-    # منوی ناوبری اصلی (سایدبار)
+    # Sidebar Navigation
     st.sidebar.title("🔬 Research Core")
-    page = st.sidebar.selectbox("انتخاب ماژول تحقیقاتی:", 
-        ["📚 Research & Methodology", 
-         "📈 Equity Intelligence (Backtest)", 
-         "🔮 AI Predictive Engine", 
-         "💳 Wealth Management (Personal)"])
+    page = st.sidebar.selectbox("Perspective:", 
+        ["📚 Methodology & Proofs", 
+         "📈 Equity Intelligence", 
+         "🔮 AI Forecasting Engine", 
+         "💳 Wealth Optimization"])
 
-    # --- صفحه ۱: مستندات و فرمول‌ها (برگشت داده شد) ---
-    if page == "📚 Research & Methodology":
-        st.header("📑 چارچوب متدولوژی کوانت (Quantitative Framework)")
-        t1, t2, t3 = st.tabs(["مدل ریاضی بازدهی", "معماری هوش مصنوعی", "اهداف پروژه"])
+    # --- PAGE 1: METHODOLOGY ---
+    if page == "📚 Methodology & Proofs":
+        st.header("📑 Quantitative Methodology")
+        tab1, tab2, tab3 = st.tabs(["Mathematical Logic", "AI Architecture", "Project Scope"])
         
-        with t1:
-            st.subheader("Governing SDE (Geometric Brownian Motion)")
+        with tab1:
+            st.subheader("Stochastic Process: GBM")
             st.latex(r"dS_t = \mu S_t dt + \sigma S_t dW_t")
             st.markdown("""
-            مدل **GBM** ستون اصلی شبیه‌سازی‌های ریسک ماست:
-            - **Expected Return ($\mu$):** میانگین بازدهی تاریخی دارایی.
-            - **Volatility ($\sigma$):** انحراف معیار که نشان‌دهنده ریسک بازار است.
-            - **Wiener Process ($dW_t$):** حرکت براونی که نوسانات تصادفی را شبیه‌سازی می‌کند.
+            The core risk engine utilizes **Geometric Brownian Motion (GBM)** to simulate future price trajectories.
+            - **Drift ($\mu$):** Represents deterministic trend based on historical mean.
+            - **Diffusion ($\sigma$):** Represents market volatility and uncertainty.
+            - **Wiener Process ($dW_t$):** Stochastic component modeled via Brownian motion.
             """)
             
-        with t2:
-            st.subheader("Prophet Decomposable Model")
+            
+        with tab2:
+            st.subheader("Decomposable Neural Forecasting")
             st.latex(r"y(t) = g(t) + s(t) + h(t) + \epsilon_t")
-            st.write("ما از مدل افزودنی (Additive Model) برای تفکیک روندها (Trend) از اثرات فصلی (Seasonality) استفاده می‌کنیم.")
+            st.markdown("""
+            Our AI uses **Prophet Architecture** to decompose time-series into:
+            1. **Trend ($g$):** Non-periodic growth logic.
+            2. **Seasonality ($s$):** Periodic changes (Weekly, Yearly).
+            3. **Holidays ($h$):** Irregular market shocks.
+            """)
+            
 
-    # --- صفحه ۲: تحلیل سهام و بک‌تست (فوق‌کامل) ---
-    elif page == "📈 Equity Intelligence (Backtest)":
-        st.header("🔍 استراتژی‌های معاملاتی و تحلیل ریسک")
-        ticker = st.text_input("نماد بورسی یا کریپتو را وارد کنید:", "NVDA").upper()
+    # --- PAGE 2: EQUITY INTELLIGENCE ---
+    elif page == "📈 Equity Intelligence":
+        st.header("🔍 Backtesting & Alpha Generation")
+        ticker = st.text_input("Institutional Ticker (e.g., NVDA, AAPL, BTC-USD):", "NVDA").upper()
         
-        if st.button("اجرای تحلیل عمیق"):
-            with st.spinner("در حال دریافت داده‌های بازار..."):
+        if st.button("Execute Quantitative Run"):
+            with st.spinner("Processing Market Dynamics..."):
                 raw = yf.download(ticker, period="2y", progress=False)
                 if isinstance(raw.columns, pd.MultiIndex): raw.columns = raw.columns.get_level_values(0)
                 
                 prices = raw['Close'].squeeze()
-                equity, sharpe, mdd = run_backtest(prices)
+                equity, sharpe, mdd = run_institutional_backtest(prices)
                 
                 c1, c2, c3 = st.columns(3)
-                c1.metric("بازدهی نهایی استراتژی", f"{((equity.iloc[-1]/10000)-1)*100:.2f}%")
-                c2.metric("شاخص شارپ (Risk-Adj)", f"{sharpe:.2f}")
-                c3.metric("بیشترین افت سرمایه (MDD)", f"{mdd:.2f}%")
+                c1.metric("Strategy Return", f"{((equity.iloc[-1]/10000)-1)*100:.2f}%")
+                c2.metric("Sharpe Ratio", f"{sharpe:.2f}")
+                c3.metric("Max Drawdown", f"{mdd:.2f}%")
                 
-                st.plotly_chart(px.line(equity, title="منحنی رشد سرمایه (Equity Curve)", template="plotly_dark", color_discrete_sequence=['#FFD700']))
+                st.plotly_chart(px.line(equity, title="Equity Growth ($10k Initial)", template="plotly_dark", color_discrete_sequence=['#FFD700']), use_container_width=True)
                 
-                # شبیه‌سازی مونت‌کارلو برای ۳۰ روز آینده
-                st.subheader("🎲 تست استرس مونت‌کارلو (Stress Test)")
+                st.subheader("Stochastic Stress Test (Monte Carlo)")
                 returns = prices.pct_change().dropna()
-                sims_df = monte_carlo(prices.iloc[-1], returns.mean(), returns.std())
-                fig_mc = px.line(sims_df, template="plotly_dark", title="۱۰۰ مسیر احتمالی قیمت در ۳۰ روز آینده")
+                sims_df = run_monte_carlo(prices.iloc[-1], returns.mean(), returns.std())
+                fig_mc = px.line(sims_df, template="plotly_dark", title="100 Simulated 30-Day Paths")
                 fig_mc.update_layout(showlegend=False)
                 st.plotly_chart(fig_mc, use_container_width=True)
 
-    # --- صفحه ۳: پیش‌بینی هوش مصنوعی (اصلاح شده و کامل) ---
-    elif page == "🔮 AI Predictive Engine":
-        st.header("🔮 موتور پیش‌بینی سری زمانی Prophet")
-        asset = st.text_input("نماد برای پیش‌بینی (مثلاً BTC-USD):", "BTC-USD").upper()
+    # --- PAGE 3: AI FORECASTING ---
+    elif page == "🔮 AI Forecasting Engine":
+        st.header("🔮 Neural Time-Series Prediction")
+        asset = st.text_input("Forecast Asset (e.g., BTC-USD):", "BTC-USD").upper()
         
-        if st.button("شروع پیش‌بینی عصبی"):
-            with st.spinner("در حال آموزش مدل هوش مصنوعی..."):
+        if st.button("Train AI Model"):
+            with st.spinner("Deploying Prophet Engine..."):
                 raw_data = yf.download(asset, period="3y", progress=False).reset_index()
                 if isinstance(raw_data.columns, pd.MultiIndex): raw_data.columns = raw_data.columns.get_level_values(0)
                 
-                # آماده‌سازی دیتا برای Prophet بدون باگ
+                # Robust Data Preprocessing
                 df_p = pd.DataFrame()
                 df_p['ds'] = pd.to_datetime(raw_data['Date']).dt.tz_localize(None)
                 df_p['y'] = pd.to_numeric(raw_data['Close'], errors='coerce')
                 df_p = df_p.dropna()
 
-                m = Prophet(daily_seasonality=True, changepoint_prior_scale=0.05)
+                m = Prophet(daily_seasonality=True, changepoint_prior_scale=0.08)
                 m.fit(df_p)
                 
                 forecast = m.predict(m.make_future_dataframe(periods=60))
                 
                 fig_forecast = go.Figure()
-                fig_forecast.add_trace(go.Scatter(x=df_p['ds'], y=df_p['y'], name="دیتای واقعی", line=dict(color='#00F2FF')))
-                fig_forecast.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat'], name="پیش‌بینی AI", line=dict(dash='dash', color='#FFD700')))
-                fig_forecast.update_layout(template="plotly_dark", title=f"چشم‌انداز ۶۰ روزه {asset}")
+                fig_forecast.add_trace(go.Scatter(x=df_p['ds'], y=df_p['y'], name="Historical", line=dict(color='#00F2FF')))
+                fig_forecast.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat'], name="AI Forecast", line=dict(dash='dash', color='#FFD700')))
+                fig_forecast.update_layout(template="plotly_dark", title=f"60-Day Forward Outlook: {asset}")
                 st.plotly_chart(fig_forecast, use_container_width=True)
                 
-                st.subheader("تحلیل چرخه‌های رفتاری (Components)")
+                st.subheader("Market Component Breakdown")
                 st.plotly_chart(plot_components_plotly(m, forecast), use_container_width=True)
 
-    # --- صفحه ۴: مدیریت مالی شخصی (بازگشت بخش‌های مدیریتی) ---
-    elif page == "💳 Wealth Management (Personal)":
-        st.header("💳 مدیریت ثروت هوشمند (Wealth Advisor)")
+    # --- PAGE 4: WEALTH OPTIMIZATION ---
+    elif page == "💳 Wealth Optimization":
+        st.header("💳 AI Behavioral Portfolio Advisor")
         
-        # لجر تراکنش‌ها (دیتاست نمونه کامل)
+        # Institutional Transaction Ledger Sample
         df_ledger = pd.DataFrame({
-            'شرح': ['حقوق ماهانه', 'اجاره خانه', 'سرمایه‌گذاری ETF', 'خرید آمازون', 'اوبر', 'سوپرمارکت', 'پس‌انداز طلا'],
-            'مبلغ': [6500, -1800, -1200, -400, -100, -500, -500],
-            'دسته‌بندی': ['Income', 'Fixed', 'Wealth', 'Wants', 'Wants', 'Fixed', 'Wealth']
+            'Description': ['Monthly Salary', 'Rent Outflow', 'ETF Investment', 'Amazon Purchase', 'Uber/Logistics', 'Fixed Bills', 'Gold/Safe Haven'],
+            'Amount': [7000, -2000, -1400, -300, -150, -600, -500],
+            'Category': ['Income', 'Fixed', 'Wealth Building', 'Discretionary', 'Discretionary', 'Fixed', 'Wealth Building']
         })
         
-        st.subheader("خلاصه وضعیت جریان نقدینگی")
+        st.subheader("Behavioral Capital Flow")
         st.table(df_ledger)
         
-        outflow = df_ledger[df_ledger['مبلغ'] < 0].copy()
-        outflow['مبلغ'] = outflow['مبلغ'].abs()
-        total_spent = outflow['مبلغ'].sum()
+        outflow = df_ledger[df_ledger['Amount'] < 0].copy()
+        outflow['Amount'] = outflow['Amount'].abs()
+        total_out = outflow['Amount'].sum()
         
-        col1, col2 = st.columns([1.5, 1])
-        with col1:
-            fig_p = px.pie(outflow, values='مبلغ', names='دسته‌بندی', hole=0.5, 
-                           template="plotly_dark", title="توزیع مخارج بر اساس مدل ۵۰/۳۰/۲ economic")
+        c1, c2 = st.columns([1.5, 1])
+        with c1:
+            fig_p = px.pie(outflow, values='Amount', names='Category', hole=0.6, 
+                           template="plotly_dark", title="Audit: 50/30/20 Capital Allocation Model",
+                           color_discrete_sequence=px.colors.sequential.YlOrRd)
             st.plotly_chart(fig_p, use_container_width=True)
             
-        with col2:
-            st.subheader("بررسی سلامت مالی (50/30/20)")
-            w_pct = (outflow[outflow['دسته‌بندی'] == 'Wealth']['مبلغ'].sum() / total_spent) * 100
-            st.metric("نرخ ثروت‌سازی (Wealth Building)", f"{w_pct:.1f}%", delta=f"{w_pct-20:.1f}% (هدف ۲۰٪)")
+        with c2:
+            st.subheader("Institutional Audit")
+            wealth_val = outflow[outflow['Category'] == 'Wealth Building']['Amount'].sum()
+            w_pct = (wealth_val / total_out) * 100
+            st.metric("Wealth Building Allocation", f"{w_pct:.1f}%", delta=f"{w_pct-20:.1f}% (Target: 20%)")
             
             if w_pct < 20:
-                st.error("هشدار: نرخ سرمایه‌گذاری شما پایین‌تر از استاندارد است.")
+                st.error("INSUFFICIENT CAPITAL ALLOCATION: Increase Asset Acquisition.")
             else:
-                st.success("تبریک: رفتار مالی شما با استانداردهای انباشت سرمایه منطبق است.")
+                st.success("INSTITUTIONAL STANDARD MET: Portfolio behavior is optimized.")
 
     st.sidebar.divider()
-    st.sidebar.caption("Diana AI Framework v4.0 | Fully Reintegrated")
+    st.sidebar.caption("Diana AI Framework v5.0 | High-Fidelity Research")
 
 if __name__ == "__main__":
     main()
