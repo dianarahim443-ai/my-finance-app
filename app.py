@@ -609,3 +609,187 @@ def render_wealth_advisor():
                 st.info(f"بر اساس تحلیل هوش مصنوعی، شما می‌توانید ماهانه {total_income * 0.1:,.0f} واحد دیگر به سبد سهام خود اضافه کنید.")
     except Exception as e:
         st.error(f"خطا در پردازش داده‌های مالی: {e}")
+
+import streamlit as st
+import pandas as pd
+import yfinance as yf
+import plotly.express as px
+import plotly.graph_objects as go
+from prophet import Prophet
+import numpy as np
+from datetime import datetime
+from scipy.stats import norm
+import warnings
+
+# --- GLOBAL CONFIG & STYLE ---
+warnings.filterwarnings("ignore")
+st.set_page_config(page_title="Diana Sovereign AI | File Intelligence", page_icon="🏛️", layout="wide")
+
+st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+    .stApp { background-color: #050505; }
+    .main .block-container {
+        background: rgba(10, 10, 10, 0.98); border-radius: 35px; 
+        padding: 50px 70px; border: 1px solid #2a2a2a;
+    }
+    h1 { color: #FFD700 !important; font-weight: 900; font-size: 4rem !important; }
+    h2, h3 { color: #FFD700 !important; border-left: 6px solid #FFD700; padding-left: 20px; }
+    .stMetric { background: rgba(255,255,255,0.03); padding: 25px; border-radius: 18px; border-top: 4px solid #FFD700; }
+    .upload-section {
+        border: 2px dashed #FFD700; padding: 40px; border-radius: 25px;
+        background: rgba(255, 215, 0, 0.02); text-align: center; margin-bottom: 30px;
+    }
+    .stButton>button {
+        background: linear-gradient(45deg, #FFD700, #B8860B);
+        color: black !important; font-weight: 800; border-radius: 10px; height: 3.5em;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# ==========================================
+# 1. THE BRAIN: AUTO-ANALYTICS ENGINE
+# ==========================================
+class UniversalEngine:
+    @staticmethod
+    def analyze_uploaded_file(df):
+        """بصورت خودکار نوع داده را تشخیص داده و تحلیل می‌کند"""
+        st.subheader("🔍 Intelligent Data Inspection")
+        
+        # شناسایی ستون‌های عددی و زمانی
+        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        date_cols = [col for col in df.columns if 'date' in col.lower() or 'time' in col.lower()]
+        
+        col1, col2 = st.columns(2)
+        col1.write(f"**Detected Numeric Columns:** {', '.join(numeric_cols)}")
+        col2.write(f"**Detected Time Columns:** {', '.join(date_cols) if date_cols else 'None'}")
+
+        # اگر داده زمانی و عددی باشد (تحلیل سری زمانی مثل بورس)
+        if date_cols and numeric_cols:
+            df[date_cols[0]] = pd.to_datetime(df[date_cols[0]])
+            df = df.sort_values(by=date_cols[0])
+            target = numeric_cols[0]
+            
+            # محاسبات کوانت
+            returns = df[target].pct_change().dropna()
+            mu, sigma = returns.mean(), returns.std()
+            sharpe = (mu / sigma) * np.sqrt(252) if sigma != 0 else 0
+            var_95 = norm.ppf(0.05, mu, sigma) * 100
+            
+            # نمایش KPIها
+            k1, k2, k3, k4 = st.columns(4)
+            k1.metric("Current Value", f"{df[target].iloc[-1]:,.2f}")
+            k2.metric("Sharpe Efficiency", f"{sharpe:.2f}")
+            k3.metric("Volatility (Ann.)", f"{sigma * np.sqrt(252)*100:.1f}%")
+            k4.metric("Risk (VaR 95%)", f"{var_95:.2f}%")
+            
+            # رسم نمودار اصلی
+            fig = px.line(df, x=date_cols[0], y=target, title="Custom File Performance Trajectory", template="plotly_dark")
+            fig.update_traces(line_color="#FFD700", line_width=2)
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # توزیع بازدهی
+            st.subheader("📊 Return Distribution Analysis")
+            
+            fig_hist = px.histogram(returns, nbins=100, marginal="violin", template="plotly_dark", color_discrete_sequence=['#FFD700'])
+            st.plotly_chart(fig_hist, use_container_width=True)
+
+        # اگر داده دسته‌بندی داشته باشد (تحلیل بودجه و مخارج)
+        elif 'Category' in df.columns or 'category' in df.columns:
+            cat_col = 'Category' if 'Category' in df.columns else 'category'
+            val_col = numeric_cols[0]
+            
+            st.subheader("💰 Wealth Allocation Audit")
+            c1, c2 = st.columns([1.5, 1])
+            
+            with c1:
+                fig_pie = px.pie(df, values=np.abs(df[val_col]), names=cat_col, hole=0.5, template="plotly_dark",
+                                 color_discrete_sequence=px.colors.sequential.YlOrBr)
+                st.plotly_chart(fig_pie, use_container_width=True)
+            
+            with c2:
+                total_in = df[df[val_col] > 0][val_col].sum()
+                total_out = df[df[val_col] < 0][val_col].abs().sum()
+                st.metric("Total Inflow", f"${total_in:,.0f}")
+                st.metric("Total Outflow", f"${total_out:,.0f}")
+                wealth_val = df[df[cat_col].str.contains('Invest|Wealth|ثروت', case=False)][val_col].abs().sum()
+                if total_in > 0:
+                    st.metric("Wealth Creation Rate", f"{(wealth_val/total_in)*100:.1f}%")
+
+# ==========================================
+# 2. INTERFACE MODULES
+# ==========================================
+
+def render_file_intelligence():
+    st.header("📂 Universal File Intelligence")
+    st.markdown("این بخش به شما اجازه می‌دهد **هر فایلی** را آپلود کنید تا هوش مصنوعی دایانا آن را تحلیل کند.")
+    
+    st.markdown('<div class="upload-section">', unsafe_allow_html=True)
+    uploaded_file = st.file_uploader("Upload your CSV file for deep analysis", type="csv")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    if uploaded_file:
+        df = pd.read_csv(uploaded_file)
+        st.success("File synchronized successfully.")
+        
+        # نمایش پیش‌نمایش دیتا
+        with st.expander("👀 View Raw Data Stream"):
+            st.dataframe(df.style.background_gradient(cmap='YlOrBr'), use_container_width=True)
+        
+        # اجرای موتور تحلیل خودکار
+        UniversalEngine.analyze_uploaded_file(df)
+    else:
+        st.info("Waiting for data stream... Please upload a CSV file to begin.")
+
+# ------------------------------------------
+
+def render_risk_framework():
+    st.header("🔬 Academic Risk Framework")
+    st.write("Mathematical foundations for institutional-grade auditing.")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("Stochastic Differential Equations")
+        st.latex(r"dS_t = \mu S_t dt + \sigma S_t dW_t")
+        st.write("Modeling asset drift and diffusion using Brownian Motion.")
+        
+        
+    with col2:
+        st.subheader("Neural Network Decomposition")
+        st.latex(r"f(x) = \text{Trend} + \text{Seasonality} + \text{Error}")
+        st.write("Prophet-based non-linear time series forecasting.")
+
+# ==========================================
+# 3. MAIN APP ROUTER
+# ==========================================
+def main():
+    st.sidebar.title("💎 Diana Sovereign")
+    st.sidebar.markdown("Institutional AI Terminal")
+    
+    menu = st.sidebar.radio("Navigation Domains:", [
+        "File Intelligence", 
+        "Live Market Audit", 
+        "Neural Forecasting", 
+        "Risk Framework"
+    ])
+    
+    if menu == "File Intelligence":
+        render_file_intelligence()
+    elif menu == "Live Market Audit":
+        st.title("🌐 Live Terminal")
+        ticker = st.text_input("Enter Global Symbol:", "RACE").upper()
+        if st.button("Audit Asset"):
+            data = yf.download(ticker, period="2y")
+            UniversalEngine.analyze_uploaded_file(data)
+    elif menu == "Neural Forecasting":
+        st.title("🔮 Neural Engine")
+        st.write("در حال تحلیل الگوهای عصبی روی دیتای انتخاب شده...")
+    elif menu == "Risk Framework":
+        render_risk_framework()
+
+    st.sidebar.divider()
+    st.sidebar.caption(f"Status: High-Performance Engine Active | {datetime.now().strftime('%H:%M:%S')}")
+
+if __name__ == "__main__":
+    main()
