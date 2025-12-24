@@ -7,14 +7,14 @@ from prophet import Prophet
 import numpy as np
 from datetime import datetime
 
-# --- 1. تنظیمات سیستمی (System Configuration) ---
-st.set_page_config(page_title="Diana Finance AI | Research Platform", layout="wide", initial_sidebar_state="expanded")
+# --- 1. SYSTEM CONFIGURATION ---
+st.set_page_config(page_title="Diana Finance AI | Institutional Research", layout="wide")
 
-# --- 2. توابع محاسباتی هوشمند (Core Logic) ---
+# --- 2. CORE QUANTITATIVE FUNCTIONS ---
 
 @st.cache_data(ttl=3600)
 def get_global_metrics():
-    """دریافت زنده شاخص‌های جهانی"""
+    """Live global market data fetcher for the header bar."""
     tickers = {"Gold": "GC=F", "S&P 500": "^GSPC", "Bitcoin": "BTC-USD", "EUR/USD": "EURUSD=X"}
     data = {}
     for name, tike in tickers.items():
@@ -24,11 +24,12 @@ def get_global_metrics():
                 price = float(df['Close'].iloc[-1])
                 change = ((price - df['Close'].iloc[-2]) / df['Close'].iloc[-2]) * 100
                 data[name] = (price, change)
+            else: data[name] = (0, 0)
         except: data[name] = (0, 0)
     return data
 
 def calculate_metrics(equity_curve, strategy_returns):
-    """محاسبه شاخص‌های عملکرد آکادمیک"""
+    """Calculates Academic KPIs: Sharpe Ratio, Max Drawdown, and Alpha."""
     rf = 0.02 / 252 
     total_return = (equity_curve.iloc[-1] / equity_curve.iloc[0] - 1) * 100
     excess_returns = strategy_returns - rf
@@ -38,7 +39,7 @@ def calculate_metrics(equity_curve, strategy_returns):
     return total_return, sharpe, max_dd
 
 def run_monte_carlo(data, prediction_days=30, simulations=50):
-    """شبیه‌سازی آماری مسیر قیمت (GBM)"""
+    """Stochastic price path modeling using Geometric Brownian Motion (GBM)."""
     returns = data.pct_change().dropna()
     last_price = float(data.iloc[-1])
     daily_vol = returns.std()
@@ -52,105 +53,97 @@ def run_monte_carlo(data, prediction_days=30, simulations=50):
         simulation_df[i] = prices
     return simulation_df
 
-# --- 3. بدنه اصلی اپلیکیشن (Main Interface) ---
+# --- 3. MAIN APPLICATION INTERFACE ---
 
 def main():
     st.title("🏛️ Diana Finance: AI Research Platform")
     st.markdown("_Master's Thesis Project | Quantitative Finance & Behavioral Economics_")
-    
-    # نوار متریک‌های زنده در هدر
-    metrics_data = get_global_metrics()
-    m_cols = st.columns(len(metrics_data))
-    for i, (name, val) in enumerate(metrics_data.items()):
+    st.markdown("---")
+
+    # Header Metrics Bar
+    metrics = get_global_metrics()
+    m_cols = st.columns(len(metrics))
+    for i, (name, val) in enumerate(metrics.items()):
         m_cols[i].metric(name, f"{val[0]:,.2f}", f"{val[1]:.2f}%")
 
-    st.divider()
-
-    # --- سایدبار و ناوبری (Navigation) ---
+    # Sidebar Navigation
     st.sidebar.title("🔬 Research Methodology")
-    
-    with st.sidebar.expander("Academic Framework", expanded=True):
-        st.markdown("""
-        **1. Quantitative Strategy:**
-        Momentum-based Alpha Generation.
-        
-        **2. Risk Architecture:**
-        Monte Carlo GBM Simulations (VaR).
-        
-        **3. Forecasting Engine:**
-        Additive Regression (Prophet).
-        """)
+    page = st.sidebar.selectbox("Module Selector:", 
+                                ["🏠 Home & Documentation", 
+                                 "📈 Equity Intelligence", 
+                                 "🔮 AI Prediction", 
+                                 "💳 Personal Finance AI"])
 
-    choice = st.sidebar.selectbox("Select Research Module:", 
-                                 ["🏠 Home & Documentation", 
-                                  "📈 Equity Intelligence", 
-                                  "🔮 AI Prediction", 
-                                  "💳 Personal Finance AI"])
-
-    # --- MODULE: HOME & DOCUMENTATION ---
-    if choice == "🏠 Home & Documentation":
+    # --- MODULE 1: HOME & DOCUMENTATION ---
+    if page == "🏠 Home & Documentation":
         st.header("📑 Quantitative Research Documentation")
         tab1, tab2, tab3 = st.tabs(["Algorithm Logic", "Backtest Assumptions", "AI vs Traditional"])
         
         with tab1:
-            st.subheader("معماری سیستم هوش مصنوعی")
-            st.write("""
-            - **Prophet Engine:** از یک مدل سری زمانی تجزیه‌پذیر برای جداسازی روند (Trend) و فصلی بودن (Seasonality) استفاده می‌کند.
-            - **Stochastic Risk:** شبیه‌سازی‌های مونت‌کارلو بر اساس مدل حرکت براونی هندسی (GBM) پیاده‌سازی شده‌اند:
+            st.subheader("AI System Architecture")
+            st.markdown("""
+            **1. Prophet Engine:**
+            Utilizes a **decomposable time-series model** to analyze: **Trend**, **Seasonality**, and **Holidays**.
+            """)
+            
+            
+            st.markdown("""
+            **2. Stochastic Risk Modeling:**
+            Implemented via **Monte Carlo methods** based on the **Geometric Brownian Motion (GBM)** framework:
             """)
             st.latex(r"dS_t = \mu S_t dt + \sigma S_t dW_t")
-        
+            
+            st.info("Parameters: $S_t$ = Asset Price, $\mu$ = Drift, $\sigma$ = Volatility, $W_t$ = Wiener Process.")
+
         with tab2:
-            st.subheader("فرضیات بک‌تست (Backtest Assumptions)")
-            st.info("سناریوی عملی: تست روی سهام Nvidia (NVDA) در بازه ۱۲ ماهه.")
+            st.subheader("Backtest Methodology")
             st.write("""
-            - سرمایه اولیه: ۱۰,۰۰۰ دلار.
-            - هزینه معاملات: صفر (فرضیه نهادی).
-            - نرخ بدون ریسک: ۲٪.
+            - **Universe:** Global Equities (via Yahoo Finance).
+            - **Initial Capital:** $10,000 USD.
+            - **Risk-Free Rate:** 2% (Standard Proxy).
+            - **Execution:** Zero slippage simulation.
             """)
             
         with tab3:
-            st.subheader("نوآوری: AI در مقابل روش‌های سنتی")
-            compare = {
-                "Metric": ["Data Processing", "Trend Detection", "Risk Model", "Integration"],
-                "Traditional (Fundamental)": ["Manual Excel", "Linear/Static", "Variance-only", "Siloed"],
-                "Diana AI (Quantitative)": ["Automated API", "Non-Linear ML", "Stochastic GBM", "Holistic Portfolio"]
+            st.subheader("Innovation: AI vs. Traditional Analysis")
+            compare_data = {
+                "Feature": ["Data Processing", "Trend Detection", "Risk Model", "Integration"],
+                "Traditional (Fundamental)": ["Manual Spreadsheets", "Linear/Static", "Variance-only", "Siloed"],
+                "Diana AI (Quantitative)": ["Automated API", "Non-Linear ML", "Stochastic GBM", "Holistic View"]
             }
-            st.table(compare)
+            st.table(compare_data)
 
-    # --- MODULE: STOCK ANALYSIS ---
-    elif choice == "📈 Equity Intelligence":
+    # --- MODULE 2: EQUITY INTELLIGENCE ---
+    elif page == "📈 Equity Intelligence":
         st.header("🔍 Backtesting & Alpha Generation")
-        ticker = st.text_input("Enter Ticker (e.g., AAPL, NVDA):", "NVDA").upper()
-        
-        if st.button("Run Institutional Analysis"):
-            with st.spinner("Executing..."):
+        ticker = st.text_input("Enter Ticker (e.g., NVDA, AAPL):", "NVDA").upper()
+        if st.button("Run Quantitative Analysis"):
+            with st.spinner("Processing..."):
                 stock_raw = yf.download(ticker, period="1y")['Close']
                 if not stock_raw.empty:
                     stock_data = stock_raw.squeeze()
-                    # استراتژی SMA 20
+                    # Momentum Strategy (SMA 20)
                     signal = np.where(stock_data > stock_data.rolling(20).mean(), 1, 0)
                     returns = stock_data.pct_change() * pd.Series(signal).shift(1).values
                     ai_equity = 10000 * (1 + returns.fillna(0)).cumprod()
                     
-                    st.subheader("Performance Analytics")
-                    fig_perf = go.Figure()
-                    fig_perf.add_trace(go.Scatter(x=ai_equity.index, y=ai_equity, name='AI Strategy', line=dict(color='#FFD700')))
-                    fig_perf.update_layout(template="plotly_dark", title="Equity Growth ($10k Start)")
+                    st.subheader("Strategy Performance")
+                    fig_perf = px.line(ai_equity, title="Equity Growth ($10,000 Initial)", template="plotly_dark")
+                    fig_perf.update_traces(line_color='#FFD700')
                     st.plotly_chart(fig_perf, use_container_width=True)
-                    
-                    st.subheader("Monte Carlo Path Projection")
-                    sims = run_monte_carlo(stock_data)
-                    fig_mc = px.line(sims, template="plotly_dark", title="Stochastic 30-Day Paths")
+
+                    st.subheader("Risk Forecasting (Monte Carlo)")
+                    sim_results = run_monte_carlo(stock_data)
+                    fig_mc = px.line(sim_results, template="plotly_dark", title="Potential 30-Day Paths")
                     fig_mc.update_layout(showlegend=False)
                     st.plotly_chart(fig_mc, use_container_width=True)
-                else: st.error("Ticker Error.")
+                else: st.error("Ticker not found.")
 
-    # --- MODULE: AI PREDICTION ---
-    elif choice == "🔮 AI Prediction":
-        st.header("🔮 AI Time-Series Forecasting")
-        symbol = st.text_input("Asset to Forecast (e.g., BTC-USD):", "BTC-USD").upper()
-        if st.button("Train & Predict"):
+    # --- MODULE 3: AI PREDICTION ---
+    elif page == "🔮 AI Prediction":
+        st.header("🔮 Time-Series Forecasting")
+        symbol = st.text_input("Enter Asset (e.g., BTC-USD):", "BTC-USD").upper()
+        if st.button("Generate Forecast"):
             df_raw = yf.download(symbol, period="2y").reset_index()
             if not df_raw.empty:
                 df_p = df_raw[['Date', 'Close']].copy()
@@ -159,15 +152,13 @@ def main():
                 m = Prophet(daily_seasonality=True); m.fit(df_p)
                 future = m.make_future_dataframe(periods=30)
                 forecast = m.predict(future)
-                fig = go.Figure()
-                fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat'], name='AI Prediction', line=dict(color='cyan')))
-                fig.update_layout(template="plotly_dark")
-                st.plotly_chart(fig, use_container_width=True)
+                fig_f = px.line(forecast, x='ds', y='yhat', title=f"30-Day Predictive Trend: {symbol}", template="plotly_dark")
+                st.plotly_chart(fig_f, use_container_width=True)
 
-    # --- MODULE: PERSONAL FINANCE ---
-    elif choice == "💳 Personal Finance AI":
+    # --- MODULE 4: PERSONAL FINANCE ---
+    elif page == "💳 Personal Finance AI":
         st.header("💳 Intelligent Wealth Management")
-        uploaded = st.file_uploader("Upload CSV (Description, Amount)", type="csv")
+        uploaded = st.file_uploader("Upload CSV (Required columns: Description, Amount)", type="csv")
         if uploaded:
             df_u = pd.read_csv(uploaded)
             if 'Description' in df_u.columns and 'Amount' in df_u.columns:
@@ -176,14 +167,12 @@ def main():
                     if any(x in d for x in ['shop', 'amazon']): return 'Discretionary'
                     if any(x in d for x in ['rent', 'bill']): return 'Fixed Obligations'
                     return 'Lifestyle/Other'
-                
                 df_u['Category'] = df_u['Description'].apply(categorize)
                 df_u['Amount'] = pd.to_numeric(df_u['Amount']).abs()
                 
                 c1, c2 = st.columns([2, 1])
                 with c1:
-                    fig = px.pie(df_u, values='Amount', names='Category', hole=0.5, 
-                                 template="plotly_dark", color_discrete_sequence=px.colors.qualitative.Pastel)
+                    fig = px.pie(df_u, values='Amount', names='Category', hole=0.5, template="plotly_dark")
                     st.plotly_chart(fig, use_container_width=True)
                 with c2:
                     st.subheader("Top Expenses")
@@ -192,10 +181,10 @@ def main():
                 st.divider()
                 st.subheader("🤖 AI Behavioral Insight")
                 total = df_u['Amount'].sum()
-                dis_pct = (df_u[df_u['Category'] == 'Discretionary']['Amount'].sum() / total) * 100
+                dis_pct = (df_u[df_u['Category'] == 'Discretionary']['Amount'].sum() / total) * 100 if total > 0 else 0
                 if dis_pct > 25:
-                    st.warning(f"AI Alert: Discretionary spending is high ({dis_pct:.1f}%). Shift capital to AI Wealth modules.")
-                else: st.success("Balance: Optimized cash flow detected.")
+                    st.warning(f"Optimization Alert: Discretionary spending at {dis_pct:.1f}%. Possible reallocation to assets.")
+                else: st.success("Strategic Balance: Spending is within institutional limits.")
 
     st.sidebar.divider()
     st.sidebar.caption(f"Last updated: {datetime.now().strftime('%Y-%m-%d')}")
