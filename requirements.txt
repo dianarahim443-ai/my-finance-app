@@ -1,6 +1,7 @@
 streamlit
 pandas
-yfinance
-plotly
-prophet
 numpy
+scikit-learn
+openai
+matplotlib
+
