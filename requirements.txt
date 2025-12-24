@@ -1,9 +1,9 @@
-streamlit
+streamlit==1.52.2
 pandas
 numpy
 yfinance
 plotly
 scipy
-prophet
-cmdstanpy
+prophet==1.1.5
+cmdstanpy==1.2.2
 
