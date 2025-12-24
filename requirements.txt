@@ -3,4 +3,5 @@ pandas
 yfinance
 plotly
 prophet
+scipy
 numpy
