@@ -8,6 +8,7 @@ import numpy as np
 from datetime import datetime
 
 # --- 1. SYSTEM CONFIGURATION ---
+# This ensures the app starts with a clean layout and no unnecessary redirects
 st.set_page_config(page_title="Diana Finance AI | Institutional Research", layout="wide")
 
 # --- 2. CORE QUANTITATIVE FUNCTIONS ---
@@ -28,16 +29,6 @@ def get_global_metrics():
         except: data[name] = (0, 0)
     return data
 
-def calculate_metrics(equity_curve, strategy_returns):
-    """Calculates Academic KPIs: Sharpe Ratio, Max Drawdown, and Alpha."""
-    rf = 0.02 / 252 
-    total_return = (equity_curve.iloc[-1] / equity_curve.iloc[0] - 1) * 100
-    excess_returns = strategy_returns - rf
-    sharpe = np.sqrt(252) * excess_returns.mean() / excess_returns.std() if excess_returns.std() != 0 else 0
-    drawdown = (equity_curve / equity_curve.cummax() - 1)
-    max_dd = drawdown.min() * 100
-    return total_return, sharpe, max_dd
-
 def run_monte_carlo(data, prediction_days=30, simulations=50):
     """Stochastic price path modeling using Geometric Brownian Motion (GBM)."""
     returns = data.pct_change().dropna()
@@ -56,18 +47,21 @@ def run_monte_carlo(data, prediction_days=30, simulations=50):
 # --- 3. MAIN APPLICATION INTERFACE ---
 
 def main():
+    # Header Section
     st.title("🏛️ Diana Finance: AI Research Platform")
     st.markdown("_Master's Thesis Project | Quantitative Finance & Behavioral Economics_")
     st.markdown("---")
 
-    # Header Metrics Bar
+    # Global Live Metrics
     metrics = get_global_metrics()
     m_cols = st.columns(len(metrics))
     for i, (name, val) in enumerate(metrics.items()):
         m_cols[i].metric(name, f"{val[0]:,.2f}", f"{val[1]:.2f}%")
 
-    # Sidebar Navigation
+    # --- SIDEBAR NAVIGATION (Anti-Redirect Loop Method) ---
     st.sidebar.title("🔬 Research Methodology")
+    
+    # Using a selectbox is the most stable way to handle navigation without URL loops
     page = st.sidebar.selectbox("Module Selector:", 
                                 ["🏠 Home & Documentation", 
                                  "📈 Equity Intelligence", 
@@ -85,14 +79,11 @@ def main():
             **1. Prophet Engine:**
             Utilizes a **decomposable time-series model** to analyze: **Trend**, **Seasonality**, and **Holidays**.
             """)
-            
-            
             st.markdown("""
             **2. Stochastic Risk Modeling:**
             Implemented via **Monte Carlo methods** based on the **Geometric Brownian Motion (GBM)** framework:
             """)
             st.latex(r"dS_t = \mu S_t dt + \sigma S_t dW_t")
-            
             st.info("Parameters: $S_t$ = Asset Price, $\mu$ = Drift, $\sigma$ = Volatility, $W_t$ = Wiener Process.")
 
         with tab2:
@@ -101,7 +92,7 @@ def main():
             - **Universe:** Global Equities (via Yahoo Finance).
             - **Initial Capital:** $10,000 USD.
             - **Risk-Free Rate:** 2% (Standard Proxy).
-            - **Execution:** Zero slippage simulation.
+            - **Execution:** Zero slippage simulation based on daily closing prices.
             """)
             
         with tab3:
@@ -118,7 +109,7 @@ def main():
         st.header("🔍 Backtesting & Alpha Generation")
         ticker = st.text_input("Enter Ticker (e.g., NVDA, AAPL):", "NVDA").upper()
         if st.button("Run Quantitative Analysis"):
-            with st.spinner("Processing..."):
+            with st.spinner("Processing Market Data..."):
                 stock_raw = yf.download(ticker, period="1y")['Close']
                 if not stock_raw.empty:
                     stock_data = stock_raw.squeeze()
@@ -155,10 +146,10 @@ def main():
                 fig_f = px.line(forecast, x='ds', y='yhat', title=f"30-Day Predictive Trend: {symbol}", template="plotly_dark")
                 st.plotly_chart(fig_f, use_container_width=True)
 
-    # --- MODULE 4: PERSONAL FINANCE ---
+    # --- MODULE 4: PERSONAL FINANCE AI ---
     elif page == "💳 Personal Finance AI":
         st.header("💳 Intelligent Wealth Management")
-        uploaded = st.file_uploader("Upload CSV (Required columns: Description, Amount)", type="csv")
+        uploaded = st.file_uploader("Upload CSV (Columns: Description, Amount)", type="csv")
         if uploaded:
             df_u = pd.read_csv(uploaded)
             if 'Description' in df_u.columns and 'Amount' in df_u.columns:
@@ -183,8 +174,8 @@ def main():
                 total = df_u['Amount'].sum()
                 dis_pct = (df_u[df_u['Category'] == 'Discretionary']['Amount'].sum() / total) * 100 if total > 0 else 0
                 if dis_pct > 25:
-                    st.warning(f"Optimization Alert: Discretionary spending at {dis_pct:.1f}%. Possible reallocation to assets.")
-                else: st.success("Strategic Balance: Spending is within institutional limits.")
+                    st.warning(f"Optimization Alert: Discretionary spending at {dis_pct:.1f}%. Consider reallocation.")
+                else: st.success("Strategic Balance: Spending behavior is optimized.")
 
     st.sidebar.divider()
     st.sidebar.caption(f"Last updated: {datetime.now().strftime('%Y-%m-%d')}")
