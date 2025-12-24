@@ -538,3 +538,74 @@ def main():
 
 if __name__ == "__main__":
     main()
+def render_wealth_advisor():
+    st.header("💳 AI Wealth Management Advisor")
+    st.markdown("فایل تراکنش‌ها یا بودجه‌بندی خود را آپلود کنید یا به صورت دستی وارد نمایید.")
+
+    # سیستم دوگانه: آپلود فایل یا ویرایش دستی
+    tab_manual, tab_upload_wealth = st.tabs(["📝 ورود دستی داده‌ها", "📥 آپلود لیست مخارج (CSV)"])
+
+    with tab_manual:
+        # دیتای پیش‌فرض برای نمایش اولیه
+        default_data = [
+            {"Category": "Income (درآمد)", "Amount": 15000},
+            {"Category": "Fixed Costs (اجاره و قبوض)", "Amount": -4500},
+            {"Category": "Investments (پس‌انداز و طلا)", "Amount": -3500},
+            {"Category": "Lifestyle (تفریح و خرید)", "Amount": -1500}
+        ]
+        df_wealth = pd.DataFrame(default_data)
+        ed_df = st.data_editor(df_wealth, num_rows="dynamic", use_container_width=True)
+
+    with tab_upload_wealth:
+        uploaded_wealth = st.file_uploader("فایل بودجه‌بندی خود را آپلود کنید (CSV)", type=["csv"], key="wealth_up")
+        if uploaded_wealth:
+            ed_df = pd.read_csv(uploaded_wealth)
+            st.write("داده‌های استخراج شده:")
+            ed_df = st.data_editor(ed_df, num_rows="dynamic", use_container_width=True)
+        else:
+            st.info("فایل آپلود نشده است. از جدول 'ورود دستی' استفاده کنید.")
+            ed_df = pd.DataFrame(default_data) # در صورت عدم آپلود، همان دیتای دستی را ملاک قرار بده
+
+    # محاسبات هوشمند (Sovereign Analytics)
+    try:
+        ed_df['Amount'] = pd.to_numeric(ed_df['Amount'], errors='coerce').fillna(0)
+        
+        total_income = ed_df[ed_df['Amount'] > 0]['Amount'].sum()
+        total_outflow = ed_df[ed_df['Amount'] < 0]['Amount'].abs().sum()
+        
+        # دسته‌بندی مخارج برای نمودار
+        outflows = ed_df[ed_df['Amount'] < 0].copy()
+        outflows['Abs'] = outflows['Amount'].abs()
+
+        if total_income > 0:
+            c1, c2, c3 = st.columns([1, 1, 1])
+            
+            # محاسبه نرخ ثروت‌سازی (درصد سرمایه‌گذاری نسبت به کل درآمد)
+            investment_val = outflows[outflows['Category'].str.contains('Invest|ثروت|پس‌انداز', case=False)]['Abs'].sum()
+            wealth_rate = (investment_val / total_income) * 100
+            
+            c1.metric("Total Income", f"${total_income:,.0f}")
+            c2.metric("Wealth Creation Rate", f"{wealth_rate:.1f}%")
+            c3.metric("Disposable Income", f"${total_income - total_outflow:,.0f}")
+
+            # نمایش نمودار تخصیص منابع
+            st.divider()
+            col_chart, col_advise = st.columns([1.5, 1])
+            
+            with col_chart:
+                fig_wealth = px.pie(outflows, values='Abs', names='Category', 
+                                  hole=0.6, title="Capital Allocation Structure",
+                                  template="plotly_dark",
+                                  color_discrete_sequence=px.colors.sequential.YlOrBr)
+                st.plotly_chart(fig_wealth, use_container_width=True)
+            
+            with col_advise:
+                st.subheader("🕵️ AI Financial Verdict")
+                if wealth_rate < 20:
+                    st.warning("هشدار: نرخ ثروت‌سازی شما زیر ۲۰٪ است. پیشنهاد می‌شود هزینه‌های Lifestyle را کاهش دهید.")
+                else:
+                    st.success("عالی: شما در مسیر استقلال مالی هستید. نرخ ثروت‌سازی شما استاندارد طلایی را رعایت کرده است.")
+                
+                st.info(f"بر اساس تحلیل هوش مصنوعی، شما می‌توانید ماهانه {total_income * 0.1:,.0f} واحد دیگر به سبد سهام خود اضافه کنید.")
+    except Exception as e:
+        st.error(f"خطا در پردازش داده‌های مالی: {e}")
