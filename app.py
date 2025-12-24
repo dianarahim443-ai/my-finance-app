@@ -1,3 +1,7 @@
+import os
+os.environ["PROPHET_BACKEND"] = "CMDSTANPY"
+from prophet import Prophet
+from prophet.plot import plot_components_plotly
 
 # =========================================================
 # DIANA FINANCE AI — SOVEREIGN GRAND-PRO EDITION
