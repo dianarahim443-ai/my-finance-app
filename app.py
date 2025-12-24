@@ -6,202 +6,373 @@ import plotly.graph_objects as go
 from prophet import Prophet
 from prophet.plot import plot_components_plotly
 import numpy as np
-from datetime import datetime
-from scipy.stats import norm
+from datetime import datetime, timedelta
+from scipy.stats import norm, skew, kurtosis
 import warnings
+import io
 
 # ==========================================================
-# 1. GLOBAL CONFIGURATION & SOVEREIGN STYLING
+# 1. SYSTEM INITIALIZATION & SOVEREIGN STYLING
 # ==========================================================
 warnings.filterwarnings("ignore")
-st.set_page_config(page_title="Diana Sovereign AI | Terminal", page_icon="🏛️", layout="wide")
+st.set_page_config(
+    page_title="Diana Sovereign AI | Terminal",
+    page_icon="🏛️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
+# Custom Institutional CSS Injection
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700&family=Inter:wght@400;900&display=swap');
+    
+    :root {
+        --gold: #FFD700;
+        --dark-bg: #050505;
+        --card-bg: rgba(20, 20, 20, 0.95);
+    }
+    
     .stApp {
-        background: linear-gradient(rgba(0,0,0,0.92), rgba(0,0,0,0.92)), 
-                    url('https://images.unsplash.com/photo-1639762681485-074b7f938ba0?q=80&w=2070');
-        background-size: cover;
+        background: radial-gradient(circle at top right, #1a1a1a, #050505);
+        color: #E0E0E0;
+        font-family: 'Inter', sans-serif;
     }
+    
     .main .block-container {
-        background: rgba(10, 10, 10, 0.98); border-radius: 40px; 
-        padding: 50px 80px; border: 1px solid #2a2a2a;
+        padding: 40px 60px;
+        max-width: 95%;
+        background: rgba(10, 10, 10, 0.9);
+        border-radius: 30px;
+        border: 1px solid #333;
     }
-    h1 { color: #FFD700 !important; font-weight: 900; font-size: 4.5rem !important; }
-    h2, h3 { color: #FFD700 !important; border-left: 8px solid #FFD700; padding-left: 15px; }
-    .stMetric { background: rgba(255,255,255,0.03); padding: 20px; border-radius: 15px; border-top: 4px solid #FFD700; }
+
+    /* Sovereign Typography */
+    .header-text {
+        font-family: 'Inter', sans-serif;
+        font-weight: 900;
+        font-size: 5.5rem !important;
+        background: linear-gradient(to bottom, #FFD700, #B8860B);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        letter-spacing: -4px;
+        margin-bottom: 0;
+    }
+
+    /* Metric Customization */
+    div[data-testid="stMetric"] {
+        background: rgba(255, 215, 0, 0.03);
+        border: 1px solid rgba(255, 215, 0, 0.15);
+        padding: 25px;
+        border-radius: 20px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+    }
+
+    /* Button System */
     .stButton>button {
         background: linear-gradient(45deg, #FFD700, #B8860B);
-        color: black !important; font-weight: 800; border-radius: 10px; height: 3.5em;
+        color: black !important;
+        font-weight: 800;
+        border: none;
+        border-radius: 12px;
+        padding: 1rem;
+        height: 4em;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .stButton>button:hover {
+        transform: translateY(-5px) scale(1.02);
+        box-shadow: 0 15px 30px rgba(255, 215, 0, 0.4);
+    }
+
+    /* Tabs Styling */
+    .stTabs [data-baseweb="tab-list"] { gap: 10px; }
+    .stTabs [data-baseweb="tab"] {
+        background-color: rgba(255,255,255,0.02);
+        border-radius: 12px 12px 0 0;
+        height: 60px;
+        color: white;
+    }
+    .stTabs [aria-selected="true"] { background-color: var(--gold) !important; color: black !important; }
+    
+    .upload-container {
+        border: 2px dashed var(--gold);
+        padding: 40px;
+        border-radius: 20px;
+        background: rgba(255, 215, 0, 0.02);
+        text-align: center;
     }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================================
-# 2. QUANTITATIVE ANALYTICS ENGINE
+# 2. QUANTITATIVE ANALYSIS CORE (CLASS-BASED)
 # ==========================================================
-class QuantEngine:
+class SovereignQuant:
     @staticmethod
-    def get_risk_metrics(df, col='Close'):
+    def fetch_data(ticker, period="2y", interval="1d"):
+        try:
+            df = yf.download(ticker, period=period, interval=interval, progress=False)
+            if df.empty: return None
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
+            return df
+        except Exception: return None
+
+    @staticmethod
+    def get_comprehensive_metrics(df, col='Close'):
         rets = df[col].pct_change().dropna()
         mu, sigma = rets.mean(), rets.std()
-        sharpe = (mu / sigma) * np.sqrt(252) if sigma != 0 else 0
-        var_95 = norm.ppf(0.05, mu, sigma) * 100
-        mdd = ((df[col] / df[col].cummax()) - 1).min() * 100
-        return {"Sharpe": sharpe, "VaR": var_95, "MDD": mdd, "Returns": rets}
+        
+        return {
+            "Last": df[col].iloc[-1],
+            "Sharpe": (mu / sigma) * np.sqrt(252) if sigma != 0 else 0,
+            "VaR_95": norm.ppf(0.05, mu, sigma) * 100,
+            "CVaR_95": rets[rets <= norm.ppf(0.05, mu, sigma)].mean() * 100,
+            "Volatility": sigma * np.sqrt(252) * 100,
+            "Drawdown": ((df[col] / df[col].cummax()) - 1).min() * 100,
+            "Skew": skew(rets),
+            "Kurtosis": kurtosis(rets),
+            "Returns": rets
+        }
 
     @staticmethod
-    def monte_carlo_sim(last_price, mu, sigma, days=60, sims=50):
-        fig = go.Figure()
-        for _ in range(sims):
-            prices = [last_price]
-            for _ in range(days):
-                prices.append(prices[-1] * np.exp((mu - 0.5 * sigma**2) + sigma * np.random.normal()))
-            fig.add_trace(go.Scatter(y=prices, mode='lines', opacity=0.15, line=dict(color='#FFD700')))
-        return fig
+    def run_monte_carlo(last_price, mu, sigma, days=60, simulations=100):
+        paths = np.zeros((days, simulations))
+        paths[0] = last_price
+        for t in range(1, days):
+            random_walk = np.random.normal(loc=mu, scale=sigma, size=simulations)
+            paths[t] = paths[t-1] * np.exp(random_walk)
+        return paths
 
 # ==========================================================
-# 3. INTERFACE MODULES
+# 3. INTERFACE MODULES (ENHANCED UX)
 # ==========================================================
 
 def render_risk_framework():
-    st.header("🔬 Academic Risk Framework")
-    col1, col2 = st.tabs(["Stochastic Models", "Tail Risk Theory"])
-    with col1:
-        st.subheader("Geometric Brownian Motion")
-        st.latex(r"dS_t = \mu S_t dt + \sigma S_t dW_t")
-        
-        st.write("This SDE models the continuous-time evolution of asset prices used in our Monte Carlo simulations.")
-    with col2:
+    st.markdown('<h1 class="header-text">RISK ARCHITECTURE</h1>', unsafe_allow_html=True)
+    st.divider()
+    
+    t_stoch, t_tail, t_stress = st.tabs(["📐 Stochastic Calculus", "📉 Tail Probability", "🔥 Crisis Stress Test"])
+    
+    with t_stoch:
+        c1, c2 = st.columns([1, 1.2])
+        with c1:
+            st.subheader("Geometric Brownian Motion (GBM)")
+            st.latex(r"dS_t = \mu S_t dt + \sigma S_t dW_t")
+            st.write("""
+                The Sovereign Terminal utilizes GBM to model continuous-time price evolution. 
+                This equation assumes prices follow a random walk where the log-returns are normally distributed.
+            """)
+            
+        with c2:
+            st.subheader("Implementation Logic")
+            st.code("""
+def simulate_gbm(S0, mu, sigma, T, N):
+    dt = T/N
+    W = np.random.standard_normal(size=N)
+    W = np.cumsum(W)*np.sqrt(dt)
+    X = (mu - 0.5*sigma**2)*np.linspace(0, T, N) + sigma*W
+    return S0*np.exp(X)
+            """, language='python')
+
+    with t_tail:
         st.subheader("Parametric Value at Risk (VaR)")
         st.latex(r"VaR_{\alpha} = \mu + \sigma \Phi^{-1}(\alpha)")
         
-        st.write("Calculates the maximum potential loss at a 95% confidence interval.")
+        st.info("The Diana Sovereign model focuses on the 5% left-tail event, ensuring institutional capital preservation.")
+
+    with t_stress:
+        st.subheader("Historical Scenario Analysis")
+        st.write("Simulating current portfolio performance against historical black-swan events:")
+        scenarios = {
+            "2008 Financial Crisis": "-50.1%",
+            "2020 COVID-19 Crash": "-34.0%",
+            "1987 Black Monday": "-22.6%",
+            "Dot-com Bubble Burst": "-45.0%"
+        }
+        cols = st.columns(4)
+        for i, (name, impact) in enumerate(scenarios.items()):
+            cols[i].metric(name, impact, delta="-Risk Critical", delta_color="inverse")
 
 # ----------------------------------------------------------
 
 def render_equity_intelligence():
-    st.header("📈 Equity Intelligence")
-    mode = st.sidebar.radio("Data Source:", ["Live Ticker", "Upload CSV"])
+    st.markdown('<h1 class="header-text">EQUITY INTELLIGENCE</h1>', unsafe_allow_html=True)
     
-    if mode == "Live Ticker":
-        ticker = st.text_input("Ticker Symbol:", "RACE").upper()
-        if st.button("Analyze Live Data"):
-            df = yf.download(ticker, period="2y")
-            if not df.empty:
-                if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
-                display_equity_results(df, ticker)
-    else:
-        up = st.file_uploader("Upload Market Data:", type="csv")
-        if up:
-            df = pd.read_csv(up)
-            p_col = st.selectbox("Select Price Column:", df.columns)
-            if st.button("Run Audit"):
-                display_equity_results(df, "Custom Asset", p_col)
+    # Advanced Universal Search
+    with st.sidebar:
+        st.header("🔍 Asset Configuration")
+        ticker = st.text_input("Global Ticker Symbol:", "NVDA").upper()
+        horizon = st.selectbox("Historical Horizon:", ["1y", "2y", "5y", "10y", "max"], index=1)
+        st.divider()
 
-def display_equity_results(df, name, col='Close'):
-    m = QuantEngine.get_risk_metrics(df, col)
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Last Price", f"{df[col].iloc[-1]:,.2f}")
-    c2.metric("Sharpe Ratio", f"{m['Sharpe']:.2f}")
-    c3.metric("Max Drawdown", f"{m['MDD']:.2f}%")
-    c4.metric("VaR (95%)", f"{m['VaR']:.2f}%")
+    df = SovereignQuant.fetch_data(ticker, period=horizon)
     
-    st.plotly_chart(px.line(df, y=col, title=f"Audit: {name}", template="plotly_dark").update_traces(line_color="#FFD700"), use_container_width=True)
-    
-    col_a, col_b = st.columns(2)
-    with col_a:
-        st.plotly_chart(px.histogram(m['Returns'], nbins=50, title="Return Distribution", template="plotly_dark", color_discrete_sequence=['#FFD700']), use_container_width=True)
-    with col_b:
-        mc = QuantEngine.monte_carlo_sim(df[col].iloc[-1], m['Returns'].mean(), m['Returns'].std())
-        st.plotly_chart(mc.update_layout(template="plotly_dark", title="Monte Carlo: 50 Stochastic Paths", showlegend=False), use_container_width=True)
+    if df is not None:
+        m = SovereignQuant.get_comprehensive_metrics(df)
+        
+        # Primary KPI Ribbon
+        k1, k2, k3, k4 = st.columns(4)
+        k1.metric("Current Value", f"${m['Last']:,.2f}")
+        k2.metric("Sharpe Efficiency", f"{m['Sharpe']:.2f}")
+        k3.metric("Annual Volatility", f"{m['Volatility']:.2f}%")
+        k4.metric("Max Drawdown", f"{m['Drawdown']:.2f}%", delta_color="inverse")
+        
+        # Main Analytics Canvas
+        st.plotly_chart(px.area(df, y='Close', title=f"Audit Trajectory: {ticker}", template="plotly_dark").update_traces(line_color="#FFD700", fillcolor="rgba(255, 215, 0, 0.1)"), use_container_width=True)
+        
+        c_left, c_right = st.columns(2)
+        with c_left:
+            st.plotly_chart(px.histogram(m['Returns'], nbins=100, title="Daily Return Distribution Density", template="plotly_dark", color_discrete_sequence=['#FFD700']), use_container_width=True)
+        
+        with c_right:
+            mc_paths = SovereignQuant.run_monte_carlo(m['Last'], m['Returns'].mean(), m['Returns'].std())
+            fig_mc = go.Figure()
+            for i in range(mc_paths.shape[1]):
+                fig_mc.add_trace(go.Scatter(y=mc_paths[:, i], mode='lines', opacity=0.1, line=dict(color='#FFD700')))
+            fig_mc.update_layout(template="plotly_dark", title="Monte Carlo: 100 Stochastic Simulations (60-Day Future)", showlegend=False)
+            st.plotly_chart(fig_mc, use_container_width=True)
+            
+        # Statistical Depth
+        with st.expander("🔬 Deep Statistical Audit"):
+            s1, s2, s3 = st.columns(3)
+            s1.write(f"**Skewness:** {m['Skew']:.4f}")
+            s2.write(f"**Kurtosis:** {m['Kurtosis']:.4f}")
+            s3.write(f"**Conditional VaR (95%):** {m['CVaR_95']:.2f}%")
+    else:
+        st.error(f"Global Ticker '{ticker}' not found. Please ensure the symbol is valid for Yahoo Finance (e.g., TSLA, BTC-USD, GC=F).")
 
 # ----------------------------------------------------------
 
 def render_wealth_advisor():
-    st.header("💳 AI Wealth Management Advisor")
-    t1, t2 = st.tabs(["📝 Manual Ledger", "📥 Document Upload"])
+    st.markdown('<h1 class="header-text">WEALTH ADVISOR</h1>', unsafe_allow_html=True)
     
-    working_df = pd.DataFrame()
+    t_upload, t_ledger = st.tabs(["📥 Smart Document Processing", "📝 Sovereign Ledger"])
+    
+    final_wealth_df = pd.DataFrame()
 
-    with t1:
-        raw_data = [{"Category": "Income", "Amount": 12000}, {"Category": "Fixed Costs", "Amount": -4000}, 
-                    {"Category": "Investments", "Amount": -3000}, {"Category": "Lifestyle", "Amount": -1000}]
-        working_df = st.data_editor(pd.DataFrame(raw_data), num_rows="dynamic", use_container_width=True)
-
-    with t2:
-        up_w = st.file_uploader("Upload Transaction Document (CSV):", type="csv")
-        if up_w:
-            file_df = pd.read_csv(up_w)
-            st.info("Map your CSV columns to System columns:")
-            cx, cy = st.columns(2)
-            cat_col = cx.selectbox("Category Column:", file_df.columns)
-            amt_col = cy.selectbox("Amount Column:", file_df.columns)
-            if st.button("Process Document"):
-                working_df = file_df[[cat_col, amt_col]].rename(columns={cat_col: 'Category', amt_col: 'Amount'})
-
-    if not working_df.empty:
-        try:
-            working_df['Amount'] = pd.to_numeric(working_df['Amount'], errors='coerce').fillna(0)
-            inc = working_df[working_df['Amount'] > 0]['Amount'].sum()
-            out = working_df[working_df['Amount'] < 0].copy()
-            out['Abs'] = out['Amount'].abs()
-            
-            if inc > 0:
-                inv = out[out['Category'].str.contains('Invest|Wealth|Stock|Gold|پس‌انداز', case=False, na=False)]['Abs'].sum()
-                rate = (inv / inc) * 100
+    with t_upload:
+        st.markdown('<div class="upload-container">', unsafe_allow_html=True)
+        up_file = st.file_uploader("Drop Bank Statement or Transaction CSV", type="csv")
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        if up_file:
+            try:
+                raw_df = pd.read_csv(up_file)
+                st.success("File synchronized successfully.")
+                st.dataframe(raw_df.head(5), use_container_width=True)
                 
-                m1, m2, m3 = st.columns(3)
-                m1.metric("Total Income", f"${inc:,.0f}")
-                m2.metric("Wealth Creation Rate", f"{rate:.1f}%")
-                m3.metric("Net Surplus", f"${inc - out['Abs'].sum():,.0f}")
+                st.warning("Mapping Intelligence: Assign columns to the Diana Sovereign standard.")
+                col_map1, col_map2 = st.columns(2)
+                
+                cat_col = col_map1.selectbox("Transaction Category Column:", raw_df.columns, key="cat_up")
+                amt_col = col_map2.selectbox("Transaction Amount Column:", raw_df.columns, key="amt_up")
+                
+                if st.button("PROCESS DOCUMENT"):
+                    final_wealth_df = raw_df[[cat_col, amt_col]].rename(columns={cat_col: 'Category', amt_col: 'Amount'})
+            except Exception as e:
+                st.error(f"Document Error: {e}")
+
+    with t_ledger:
+        st.write("Manual entry for off-chain or private assets:")
+        default_ledger = [
+            {"Category": "Primary Income", "Amount": 18000.0},
+            {"Category": "Real Estate Costs", "Amount": -4500.0},
+            {"Category": "Equity Portfolio", "Amount": -5000.0},
+            {"Category": "Technology Expenses", "Amount": -1200.0},
+            {"Category": "Luxury/Lifestyle", "Amount": -2000.0}
+        ]
+        final_wealth_df = st.data_editor(pd.DataFrame(default_ledger), num_rows="dynamic", use_container_width=True)
+
+    if not final_wealth_df.empty:
+        try:
+            final_wealth_df['Amount'] = pd.to_numeric(final_wealth_df['Amount'], errors='coerce').fillna(0)
+            total_income = final_wealth_df[final_wealth_df['Amount'] > 0]['Amount'].sum()
+            total_outflow = final_wealth_df[final_wealth_df['Amount'] < 0].copy()
+            total_outflow['Abs'] = total_outflow['Amount'].abs()
+            
+            if total_income > 0:
+                # Calculate Wealth Creation Velocity
+                wealth_keywords = 'Invest|Wealth|Stock|Gold|Crypto|Save|Portfolio'
+                investment_total = total_outflow[total_outflow['Category'].str.contains(wealth_keywords, case=False, na=False)]['Abs'].sum()
+                velocity = (investment_total / total_income) * 100
+                
+                w1, w2, w3 = st.columns(3)
+                w1.metric("Gross Capital Inflow", f"${total_income:,.0f}")
+                w2.metric("Wealth Creation Velocity", f"{velocity:.1f}%")
+                w3.metric("Net Surplus", f"${total_income - total_outflow['Abs'].sum():,.0f}")
                 
                 st.divider()
-                ca, cb = st.columns([1.5, 1])
-                with ca:
+                c_pie, c_adv = st.columns([1.5, 1])
+                with c_pie:
+                    st.plotly_chart(px.pie(total_outflow, values='Abs', names='Category', hole=0.5, template="plotly_dark", title="Capital Allocation Structure"), use_container_width=True)
+                with c_adv:
+                    st.subheader("🕵️ Sovereign Financial Verdict")
+                    if velocity < 20:
+                        st.error("CRITICAL: Wealth rate is below institutional benchmark (20%). Your capital decay is exceeding creation.")
+                    elif 20 <= velocity < 40:
+                        st.warning("STABLE: Moderate wealth creation. Suggest increasing ETF exposure.")
+                    else:
+                        st.success("SOVEREIGN: Exceptional wealth velocity. Capital is being effectively weaponized.")
                     
-                    st.plotly_chart(px.pie(out, values='Abs', names='Category', hole=0.6, template="plotly_dark", color_discrete_sequence=px.colors.sequential.YlOrBr), use_container_width=True)
-                with cb:
-                    st.subheader("🕵️ AI Financial Verdict")
-                    if rate < 20: st.warning("Wealth Rate is below the 20% institutional threshold. Reallocate lifestyle capital.")
-                    else: st.success("Optimal Capital Structure detected. High wealth creation velocity.")
-        except Exception as e: st.error(f"Processing Error: {e}")
+                    
+        except Exception as e:
+            st.error(f"Analysis Fault: {e}")
 
 # ----------------------------------------------------------
 
-def render_neural_forecast():
-    st.header("🔮 Neural Prediction Engine")
-    target = st.text_input("Forecast Asset (e.g., BTC-USD):", "NVDA").upper()
-    if st.button("Run Neural Training"):
-        df = yf.download(target, period="3y").reset_index()
-        if not df.empty:
-            if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
-            p_df = pd.DataFrame({'ds': df['Date'].dt.tz_localize(None), 'y': df['Close']}).dropna()
-            m = Prophet(daily_seasonality=True).fit(p_df)
-            future = m.predict(m.make_future_dataframe(periods=90))
-            
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(x=p_df['ds'], y=p_df['y'], name="Actual", line=dict(color='#00F2FF')))
-            fig.add_trace(go.Scatter(x=future['ds'], y=future['yhat'], name="Forecast", line=dict(color='#FFD700', dash='dash')))
-            st.plotly_chart(fig.update_layout(template="plotly_dark", title=f"90-Day Neural Projection: {target}"), use_container_width=True)
-            st.plotly_chart(plot_components_plotly(m, future), use_container_width=True)
+def render_neural_prediction():
+    st.markdown('<h1 class="header-text">NEURAL PREDICTION</h1>', unsafe_allow_html=True)
+    
+    target_ticker = st.text_input("Neural Forecast Target:", "BTC-USD").upper()
+    
+    if st.button("INITIATE NEURAL TRAINING"):
+        with st.spinner("Executing Facebook Prophet V3 training..."):
+            raw_data = SovereignQuant.fetch_data(target_ticker, period="3y")
+            if raw_data is not None:
+                df_p = raw_data.reset_index()[['Date', 'Close']].rename(columns={'Date': 'ds', 'Close': 'y'})
+                df_p['ds'] = df_p['ds'].dt.tz_localize(None)
+                
+                model = Prophet(daily_seasonality=True, changepoint_prior_scale=0.05)
+                model.fit(df_p)
+                
+                future = model.make_future_dataframe(periods=90)
+                forecast = model.predict(future)
+                
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(x=df_p['ds'], y=df_p['y'], name="Market Reality", line=dict(color='#00F2FF')))
+                fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat'], name="Neural Path", line=dict(color='#FFD700', dash='dash')))
+                
+                st.plotly_chart(fig.update_layout(template="plotly_dark", title=f"90-Day Deep Learning Projection: {target_ticker}"), use_container_width=True)
+                st.plotly_chart(plot_components_plotly(model, forecast), use_container_width=True)
+            else:
+                st.error("Neural engine failed to fetch data for the specified ticker.")
 
 # ==========================================================
-# 4. MAIN CONTROLLER
+# 4. MAIN TERMINAL CONTROLLER
 # ==========================================================
 def main():
-    st.sidebar.title("💎 Diana Sovereign")
-    nav = st.sidebar.radio("Navigation:", ["Risk Framework", "Equity Intelligence", "Neural Forecasting", "Wealth Management"])
+    # Header Ribbon
+    col_logo, col_pulse = st.columns([1, 4])
+    with col_logo:
+        st.sidebar.markdown("# 🏛️ DIANA SOVEREIGN")
+        st.sidebar.markdown("`Institutional Access: Verified`")
+    
+    # Global Pulse Indicators
+    st.sidebar.divider()
+    nav = st.sidebar.radio("COMMAND CENTER", ["Risk Framework", "Equity Intelligence", "Neural Forecasting", "Wealth Management"])
+    
+    # Live Clock
+    st.sidebar.divider()
+    st.sidebar.write(f"**Server Time:** {datetime.now().strftime('%H:%M:%S')}")
+    st.sidebar.write(f"**Market Status:** {'OPEN' if 9 <= datetime.now().hour < 16 else 'CLOSED'}")
     
     if nav == "Risk Framework": render_risk_framework()
     elif nav == "Equity Intelligence": render_equity_intelligence()
-    elif nav == "Neural Forecasting": render_neural_forecast()
+    elif nav == "Neural Forecasting": render_neural_prediction()
     elif nav == "Wealth Management": render_wealth_advisor()
-    
-    st.sidebar.divider()
-    st.sidebar.caption(f"Status: Active | {datetime.now().strftime('%H:%M:%S')}")
 
 if __name__ == "__main__":
     main()
+
+# End of Diana Sovereign AI Terminal
