@@ -8,10 +8,10 @@ from prophet.plot import plot_components_plotly
 import numpy as np
 from datetime import datetime
 
-# --- 1. SYSTEM & INTERFACE CONFIGURATION ---
+# --- 1. SYSTEM CONFIGURATION ---
 st.set_page_config(page_title="Diana Finance AI | Institutional Research", layout="wide")
 
-# Advanced CSS for high-end FinTech UI
+# Institutional Dark UI Styling
 st.markdown("""
     <style>
     .stApp {
@@ -20,55 +20,32 @@ st.markdown("""
         background-size: cover;
     }
     .main .block-container {
-        background: rgba(10, 10, 10, 0.92);
-        border-radius: 25px;
+        background: rgba(10, 10, 10, 0.95);
+        border-radius: 20px;
         padding: 50px;
-        border: 1px solid #444;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.7);
+        border: 1px solid #333;
     }
     h1, h2, h3 { color: #FFD700 !important; font-family: 'Inter', sans-serif; font-weight: 800; }
-    .stMetric { background: rgba(255,255,255,0.03); padding: 20px; border-radius: 15px; border-left: 4px solid #FFD700; }
-    .stTabs [data-baseweb="tab-list"] { gap: 20px; }
-    .stTabs [data-baseweb="tab"] { background-color: transparent; border-radius: 4px; padding: 10px 20px; color: white; }
+    .stMetric { background: rgba(255,255,255,0.03); padding: 20px; border-radius: 12px; border-left: 5px solid #FFD700; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. QUANTITATIVE & ANALYTICAL ENGINES ---
+# --- 2. ANALYTICAL ENGINES ---
 
 @st.cache_data(ttl=3600)
 def get_global_pulse():
-    """Live Market Watchlist with MultiIndex Fix"""
-    tickers = {"S&P 500": "^GSPC", "Nasdaq 100": "^IXIC", "Gold": "GC=F", "Bitcoin": "BTC-USD", "EUR/USD": "EURUSD=X"}
+    tickers = {"S&P 500": "^GSPC", "Nasdaq 100": "^IXIC", "Gold": "GC=F", "Bitcoin": "BTC-USD"}
     data = {}
     for name, sym in tickers.items():
         try:
             df = yf.download(sym, period="2d", progress=False)
             if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
-            price = float(df['Close'].iloc[-1])
-            prev = float(df['Close'].iloc[-2])
-            change = ((price - prev) / prev) * 100
-            data[name] = (price, change)
+            price, prev = float(df['Close'].iloc[-1]), float(df['Close'].iloc[-2])
+            data[name] = (price, ((price - prev) / prev) * 100)
         except: data[name] = (0, 0)
     return data
 
-def run_institutional_backtest(data):
-    """Trend-Following Momentum Strategy"""
-    fast_sma = data.rolling(window=20).mean()
-    slow_sma = data.rolling(window=50).mean()
-    signal = np.where(fast_sma > slow_sma, 1, 0)
-    returns = data.pct_change()
-    strat_returns = returns * pd.Series(signal).shift(1).values
-    equity_curve = 10000 * (1 + strat_returns.fillna(0)).cumprod()
-    
-    # Statistical Risk Metrics
-    rf = 0.02 / 252 
-    excess = strat_returns.fillna(0) - rf
-    sharpe = np.sqrt(252) * excess.mean() / excess.std() if excess.std() != 0 else 0
-    max_dd = ((equity_curve / equity_curve.cummax()) - 1).min() * 100
-    return equity_curve, sharpe, max_dd
-
 def run_monte_carlo(last_price, mu, sigma, days=30, sims=100):
-    """Stochastic Simulation using Geometric Brownian Motion"""
     simulation_df = pd.DataFrame()
     for i in range(sims):
         prices = [last_price]
@@ -77,149 +54,117 @@ def run_monte_carlo(last_price, mu, sigma, days=30, sims=100):
         simulation_df[i] = prices
     return simulation_df
 
-# --- 3. CORE APPLICATION INTERFACE ---
+# --- 3. MAIN INTERFACE ---
 
 def main():
-    st.title("🏛️ Diana Finance: Institutional AI Research")
-    st.markdown("##### *Advanced Quantitative Modeling & Neural Forecasting Platform*")
+    st.title("🏛️ Diana Finance: Institutional Research Platform")
     
-    # Global Header Pulse
+    # Global Pulse Header
     pulse = get_global_pulse()
-    p_cols = st.columns(len(pulse))
+    cols = st.columns(len(pulse))
     for i, (name, val) in enumerate(pulse.items()):
-        p_cols[i].metric(name, f"{val[0]:,.2f}", f"{val[1]:.2f}%")
+        cols[i].metric(name, f"{val[0]:,.2f}", f"{val[1]:.2f}%")
     st.divider()
 
-    # Sidebar Navigation
-    st.sidebar.title("🔬 Research Core")
-    page = st.sidebar.selectbox("Perspective:", 
-        ["📚 Methodology & Proofs", 
-         "📈 Equity Intelligence", 
-         "🔮 AI Forecasting Engine", 
-         "💳 Wealth Optimization"])
+    st.sidebar.title("🔬 Research Modules")
+    page = st.sidebar.selectbox("Select Module:", 
+        ["Documentation & Methodology", "Equity Intelligence", "AI Predictive Engine", "Personal Finance AI"])
 
-    # --- PAGE 1: METHODOLOGY ---
-    if page == "📚 Methodology & Proofs":
+    # --- PAGE 1: DOCUMENTATION ---
+    if page == "Documentation & Methodology":
         st.header("📑 Quantitative Methodology")
-        tab1, tab2, tab3 = st.tabs(["Mathematical Logic", "AI Architecture", "Project Scope"])
-        
-        with tab1:
-            st.subheader("Stochastic Process: GBM")
+        t1, t2 = st.tabs(["Stochastic Modeling", "Neural Architecture"])
+        with t1:
+            st.subheader("Geometric Brownian Motion (GBM)")
             st.latex(r"dS_t = \mu S_t dt + \sigma S_t dW_t")
-            st.markdown("""
-            The core risk engine utilizes **Geometric Brownian Motion (GBM)** to simulate future price trajectories.
-            - **Drift ($\mu$):** Represents deterministic trend based on historical mean.
-            - **Diffusion ($\sigma$):** Represents market volatility and uncertainty.
-            - **Wiener Process ($dW_t$):** Stochastic component modeled via Brownian motion.
-            """)
+            st.write("Used for simulating potential price paths under stochastic market conditions.")
             
-            
-        with tab2:
-            st.subheader("Decomposable Neural Forecasting")
+        with t2:
+            st.subheader("Prophet Decomposable Model")
             st.latex(r"y(t) = g(t) + s(t) + h(t) + \epsilon_t")
-            st.markdown("""
-            Our AI uses **Prophet Architecture** to decompose time-series into:
-            1. **Trend ($g$):** Non-periodic growth logic.
-            2. **Seasonality ($s$):** Periodic changes (Weekly, Yearly).
-            3. **Holidays ($h$):** Irregular market shocks.
-            """)
+            st.write("Our AI decomposes data into Trend, Seasonality, and Holiday effects.")
             
 
     # --- PAGE 2: EQUITY INTELLIGENCE ---
-    elif page == "📈 Equity Intelligence":
-        st.header("🔍 Backtesting & Alpha Generation")
-        ticker = st.text_input("Institutional Ticker (e.g., NVDA, AAPL, BTC-USD):", "NVDA").upper()
-        
-        if st.button("Execute Quantitative Run"):
-            with st.spinner("Processing Market Dynamics..."):
-                raw = yf.download(ticker, period="2y", progress=False)
-                if isinstance(raw.columns, pd.MultiIndex): raw.columns = raw.columns.get_level_values(0)
-                
-                prices = raw['Close'].squeeze()
-                equity, sharpe, mdd = run_institutional_backtest(prices)
-                
-                c1, c2, c3 = st.columns(3)
-                c1.metric("Strategy Return", f"{((equity.iloc[-1]/10000)-1)*100:.2f}%")
-                c2.metric("Sharpe Ratio", f"{sharpe:.2f}")
-                c3.metric("Max Drawdown", f"{mdd:.2f}%")
-                
-                st.plotly_chart(px.line(equity, title="Equity Growth ($10k Initial)", template="plotly_dark", color_discrete_sequence=['#FFD700']), use_container_width=True)
-                
-                st.subheader("Stochastic Stress Test (Monte Carlo)")
-                returns = prices.pct_change().dropna()
-                sims_df = run_monte_carlo(prices.iloc[-1], returns.mean(), returns.std())
-                fig_mc = px.line(sims_df, template="plotly_dark", title="100 Simulated 30-Day Paths")
-                fig_mc.update_layout(showlegend=False)
-                st.plotly_chart(fig_mc, use_container_width=True)
-
-    # --- PAGE 3: AI FORECASTING ---
-    elif page == "🔮 AI Forecasting Engine":
-        st.header("🔮 Neural Time-Series Prediction")
-        asset = st.text_input("Forecast Asset (e.g., BTC-USD):", "BTC-USD").upper()
-        
-        if st.button("Train AI Model"):
-            with st.spinner("Deploying Prophet Engine..."):
-                raw_data = yf.download(asset, period="3y", progress=False).reset_index()
-                if isinstance(raw_data.columns, pd.MultiIndex): raw_data.columns = raw_data.columns.get_level_values(0)
-                
-                # Robust Data Preprocessing
-                df_p = pd.DataFrame()
-                df_p['ds'] = pd.to_datetime(raw_data['Date']).dt.tz_localize(None)
-                df_p['y'] = pd.to_numeric(raw_data['Close'], errors='coerce')
-                df_p = df_p.dropna()
-
-                m = Prophet(daily_seasonality=True, changepoint_prior_scale=0.08)
-                m.fit(df_p)
-                
-                forecast = m.predict(m.make_future_dataframe(periods=60))
-                
-                fig_forecast = go.Figure()
-                fig_forecast.add_trace(go.Scatter(x=df_p['ds'], y=df_p['y'], name="Historical", line=dict(color='#00F2FF')))
-                fig_forecast.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat'], name="AI Forecast", line=dict(dash='dash', color='#FFD700')))
-                fig_forecast.update_layout(template="plotly_dark", title=f"60-Day Forward Outlook: {asset}")
-                st.plotly_chart(fig_forecast, use_container_width=True)
-                
-                st.subheader("Market Component Breakdown")
-                st.plotly_chart(plot_components_plotly(m, forecast), use_container_width=True)
-
-    # --- PAGE 4: WEALTH OPTIMIZATION ---
-    elif page == "💳 Wealth Optimization":
-        st.header("💳 AI Behavioral Portfolio Advisor")
-        
-        # Institutional Transaction Ledger Sample
-        df_ledger = pd.DataFrame({
-            'Description': ['Monthly Salary', 'Rent Outflow', 'ETF Investment', 'Amazon Purchase', 'Uber/Logistics', 'Fixed Bills', 'Gold/Safe Haven'],
-            'Amount': [7000, -2000, -1400, -300, -150, -600, -500],
-            'Category': ['Income', 'Fixed', 'Wealth Building', 'Discretionary', 'Discretionary', 'Fixed', 'Wealth Building']
-        })
-        
-        st.subheader("Behavioral Capital Flow")
-        st.table(df_ledger)
-        
-        outflow = df_ledger[df_ledger['Amount'] < 0].copy()
-        outflow['Amount'] = outflow['Amount'].abs()
-        total_out = outflow['Amount'].sum()
-        
-        c1, c2 = st.columns([1.5, 1])
-        with c1:
-            fig_p = px.pie(outflow, values='Amount', names='Category', hole=0.6, 
-                           template="plotly_dark", title="Audit: 50/30/20 Capital Allocation Model",
-                           color_discrete_sequence=px.colors.sequential.YlOrRd)
-            st.plotly_chart(fig_p, use_container_width=True)
+    elif page == "Equity Intelligence":
+        st.header("📈 Backtesting & Risk Intelligence")
+        ticker = st.text_input("Institutional Ticker:", "NVDA").upper()
+        if st.button("Run Simulation"):
+            raw = yf.download(ticker, period="2y", progress=False)
+            if isinstance(raw.columns, pd.MultiIndex): raw.columns = raw.columns.get_level_values(0)
             
-        with c2:
-            st.subheader("Institutional Audit")
-            wealth_val = outflow[outflow['Category'] == 'Wealth Building']['Amount'].sum()
-            w_pct = (wealth_val / total_out) * 100
-            st.metric("Wealth Building Allocation", f"{w_pct:.1f}%", delta=f"{w_pct-20:.1f}% (Target: 20%)")
+            prices = raw['Close'].squeeze()
+            returns = prices.pct_change().dropna()
             
-            if w_pct < 20:
-                st.error("INSUFFICIENT CAPITAL ALLOCATION: Increase Asset Acquisition.")
-            else:
-                st.success("INSTITUTIONAL STANDARD MET: Portfolio behavior is optimized.")
+            # Risk Metrics
+            sharpe = np.sqrt(252) * returns.mean() / returns.std()
+            st.metric("Annualized Sharpe Ratio", f"{sharpe:.2f}")
+            
+            # Monte Carlo
+            st.subheader("Monte Carlo Stress Test")
+            sims = run_monte_carlo(prices.iloc[-1], returns.mean(), returns.std())
+            st.plotly_chart(px.line(sims, template="plotly_dark", title="100 Simulated Paths (30D)").update_layout(showlegend=False))
+
+    # --- PAGE 3: AI PREDICTION ---
+    elif page == "AI Predictive Engine":
+        st.header("🔮 Neural Time-Series Forecasting")
+        asset = st.text_input("Asset Symbol:", "BTC-USD").upper()
+        if st.button("Generate AI Forecast"):
+            raw = yf.download(asset, period="3y", progress=False).reset_index()
+            if isinstance(raw.columns, pd.MultiIndex): raw.columns = raw.columns.get_level_values(0)
+            
+            # PREPROCESSING (The Fix)
+            df_p = pd.DataFrame({'ds': pd.to_datetime(raw['Date']).dt.tz_localize(None), 
+                                 'y': pd.to_numeric(raw['Close'], errors='coerce')}).dropna()
+
+            m = Prophet(daily_seasonality=True).fit(df_p)
+            forecast = m.predict(m.make_future_dataframe(periods=60))
+            
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=df_p['ds'], y=df_p['y'], name="Actual", line=dict(color='#00F2FF')))
+            fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat'], name="AI Prediction", line=dict(dash='dash', color='#FFD700')))
+            st.plotly_chart(fig.update_layout(template="plotly_dark"), use_container_width=True)
+            
+            st.subheader("Behavioral Seasonality Breakdown")
+            st.plotly_chart(plot_components_plotly(m, forecast), use_container_width=True)
+
+    # --- PAGE 4: PERSONAL FINANCE (FILE UPLOAD BACK) ---
+    elif page == "Personal Finance AI":
+        st.header("💳 AI-Driven Capital Allocation")
+        st.markdown("Upload your transaction CSV or use the **Institutional Simulation** below.")
+        
+        uploaded_file = st.file_uploader("Upload Transaction Ledger (CSV)", type="csv")
+        
+        if uploaded_file is not None:
+            df = pd.read_csv(uploaded_file)
+        else:
+            st.info("Simulation Mode: Visualizing Sample Institutional Data")
+            df = pd.DataFrame({
+                'Description': ['Salary', 'Rent', 'ETF Investment', 'Amazon', 'Groceries', 'Gold Savings'],
+                'Amount': [6000, -2000, -1200, -400, -500, -400],
+                'Category': ['Income', 'Fixed', 'Wealth', 'Lifestyle', 'Fixed', 'Wealth']
+            })
+
+        if 'Amount' in df.columns:
+            df['Amount'] = pd.to_numeric(df['Amount'])
+            outflow = df[df['Amount'] < 0].abs()
+            total_out = outflow['Amount'].sum()
+            
+            c1, c2 = st.columns([1.5, 1])
+            with c1:
+                st.plotly_chart(px.pie(outflow, values='Amount', names='Category', hole=0.6, 
+                                     template="plotly_dark", title="Audit: Capital Outflow Distribution"))
+            with c2:
+                wealth_pct = (outflow[outflow['Category'] == 'Wealth']['Amount'].sum() / total_out) * 100
+                st.metric("Wealth Building Rate", f"{wealth_pct:.1f}%", delta=f"{wealth_pct-20:.1f}%")
+                if wealth_pct < 20: st.error("Audit Fail: Increase Asset Allocation.")
+                else: st.success("Audit Pass: Optimized for Wealth Accumulation.")
+            
+            st.subheader("Transaction Intelligence")
+            st.dataframe(df, use_container_width=True)
 
     st.sidebar.divider()
-    st.sidebar.caption("Diana AI Framework v5.0 | High-Fidelity Research")
+    st.sidebar.caption("Diana AI Framework v6.0 | Total Reintegration")
 
 if __name__ == "__main__":
     main()
