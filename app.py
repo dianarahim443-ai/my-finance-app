@@ -1,360 +1,275 @@
+# ==========================================================
+# DIANA FINANCE AI — SOVEREIGN INSTITUTIONAL TERMINAL
+# Cloud-Safe + Local-Heavy Architecture
+# ==========================================================
+
+# ---------- ENV FIX (MUST BE FIRST) ----------
 import os
 os.environ["PROPHET_BACKEND"] = "CMDSTANPY"
-from prophet import Prophet
-from prophet.plot import plot_components_plotly
 
-# =========================================================
-# DIANA FINANCE AI — SOVEREIGN GRAND-PRO EDITION
-# Build: v12.0.4-Magnum | Cloud-Safe + Local-Pro
-# =========================================================
-
-import os
-import io
-import math
-import time
+# ---------- CORE IMPORTS ----------
 import streamlit as st
 import pandas as pd
 import numpy as np
 import yfinance as yf
 import plotly.express as px
 import plotly.graph_objects as go
-
 from datetime import datetime, timedelta
-from scipy.stats import norm, skew, kurtosis
+from scipy.stats import norm
+import io
+import warnings
 
-# ---------------------------------------------------------
-# ENVIRONMENT SAFETY
-# ---------------------------------------------------------
-os.environ["PROPHET_BACKEND"] = "CMDSTANPY"
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+warnings.filterwarnings("ignore")
 
-# ---------------------------------------------------------
-# PAGE CONFIG
-# ---------------------------------------------------------
+# ---------- SAFE PROPHET LOADER ----------
+PROPHET_AVAILABLE = True
+try:
+    from prophet import Prophet
+    from prophet.plot import plot_components_plotly
+except Exception as e:
+    PROPHET_AVAILABLE = False
+    PROPHET_ERROR = str(e)
+
+# ==========================================================
+# 1. APP CONFIGURATION
+# ==========================================================
+
 st.set_page_config(
-    page_title="Diana Finance AI | Sovereign Grand-Pro",
+    page_title="Diana Finance AI | Sovereign Pro",
     page_icon="🏛️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# ---------------------------------------------------------
-# GLOBAL STATE INIT
-# ---------------------------------------------------------
-if "boot_time" not in st.session_state:
-    st.session_state.boot_time = datetime.now()
+# ==========================================================
+# 2. HIGH-END INSTITUTIONAL THEME
+# ==========================================================
 
-if "nav" not in st.session_state:
-    st.session_state.nav = "Global Pulse"
-
-# ---------------------------------------------------------
-# HIGH-END THEME ENGINE
-# ---------------------------------------------------------
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&display=swap');
-
-html, body, [class*="css"] {
-    font-family: 'Inter', sans-serif;
-}
-
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;900&display=swap');
+html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 .stApp {
-    background:
-        linear-gradient(rgba(0,0,0,0.94), rgba(0,0,0,0.94)),
-        url("https://images.unsplash.com/photo-1611974717483-30510c436662?q=80&w=2070");
+    background: linear-gradient(rgba(0,0,0,0.95), rgba(0,0,0,0.95)),
+                url('https://images.unsplash.com/photo-1611974717483-30510c436662?q=80&w=2070');
     background-size: cover;
 }
-
 .main .block-container {
-    background: rgba(10,10,10,0.98);
+    background: rgba(10, 10, 10, 0.97);
     border-radius: 40px;
     padding: 60px;
     border: 1px solid #222;
     box-shadow: 0 40px 120px rgba(0,0,0,1);
 }
-
-h1 {
-    color: #FFD700 !important;
-    font-size: 4.5rem !important;
-    font-weight: 900;
-    letter-spacing: -3px;
-}
-
-h2, h3 {
-    color: #E6E6E6 !important;
-    border-left: 5px solid #FFD700;
-    padding-left: 15px;
-}
-
+h1 { color: #FFD700 !important; font-weight: 900; font-size: 4rem !important; }
+h2, h3 { color: #E0E0E0 !important; border-left: 5px solid #FFD700; padding-left: 15px; }
 .stMetric {
-    background: rgba(255,255,255,0.03);
+    background: rgba(255,255,255,0.02);
     padding: 30px;
     border-radius: 25px;
     border-top: 5px solid #FFD700;
 }
-
-.stTabs [data-baseweb="tab"] {
-    font-size: 1.1rem;
-}
-
 </style>
 """, unsafe_allow_html=True)
 
-# =========================================================
-# ANALYTICS CORE — INSTITUTIONAL GRADE
-# =========================================================
+# ==========================================================
+# 3. QUANTITATIVE CORE ENGINE
+# ==========================================================
+
 class SovereignAnalytics:
 
     @staticmethod
-    def standardize(df: pd.DataFrame) -> pd.DataFrame:
+    def standardize_data(df):
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
-        return df.dropna()
+        return df
 
     @staticmethod
-    def returns(series: pd.Series) -> pd.Series:
-        return series.pct_change().dropna()
+    def compute_risk_ratios(returns):
+        if returns.empty:
+            return None
 
-    @staticmethod
-    def drawdown(returns: pd.Series) -> pd.Series:
-        cum = (1 + returns).cumprod()
-        peak = cum.cummax()
-        return (cum - peak) / peak
-
-    @staticmethod
-    def risk_metrics(returns: pd.Series) -> dict:
-        rf = 0.04 / 252
+        rf_daily = 0.04 / 252
         mu = returns.mean()
         sigma = returns.std()
 
-        sharpe = (mu - rf) / sigma * np.sqrt(252) if sigma != 0 else 0
+        sharpe = (mu - rf_daily) / sigma * np.sqrt(252) if sigma > 0 else 0
         downside = returns[returns < 0].std()
-        sortino = (mu - rf) / downside * np.sqrt(252) if downside else 0
+        sortino = (mu - rf_daily) / downside * np.sqrt(252) if downside > 0 else 0
 
-        dd = SovereignAnalytics.drawdown(returns).min() * 100
-        var95 = norm.ppf(0.05, mu, sigma) * 100
-        cvar = returns[returns <= np.percentile(returns, 5)].mean() * 100
+        cum = (1 + returns).cumprod()
+        peak = cum.cummax()
+        drawdown = (cum - peak) / peak
+        mdd = drawdown.min() * 100
+
+        var_95 = norm.ppf(0.05, mu, sigma) * 100
 
         return {
             "Sharpe": sharpe,
             "Sortino": sortino,
-            "Max Drawdown %": dd,
-            "VaR 95% %": var95,
-            "CVaR %": cvar,
-            "Skew": skew(returns),
-            "Kurtosis": kurtosis(returns)
+            "MDD": mdd,
+            "VaR": var_95
         }
 
-# =========================================================
-# GLOBAL PULSE — REAL-TIME TERMINAL
-# =========================================================
+# ==========================================================
+# 4. UI MODULES
+# ==========================================================
+
 def render_global_pulse():
-    st.title("🏛️ Diana Sovereign")
-    st.markdown("### *Institutional Multi-Asset Intelligence Terminal*")
+    st.title("🏛️ Diana Sovereign Terminal")
+    st.markdown("### *Institutional-Grade Multi-Asset Intelligence*")
 
     assets = {
         "S&P 500": "^GSPC",
-        "Nasdaq 100": "^IXIC",
+        "Nasdaq": "^IXIC",
         "Gold": "GC=F",
         "Bitcoin": "BTC-USD",
-        "10Y Treasury": "^TNX"
+        "10Y Yield": "^TNX"
     }
 
     cols = st.columns(len(assets))
-    for i, (name, ticker) in enumerate(assets.items()):
+    for i, (name, sym) in enumerate(assets.items()):
         try:
-            df = yf.download(ticker, period="2d", progress=False)
-            df = SovereignAnalytics.standardize(df)
+            df = yf.download(sym, period="2d", progress=False)
+            df = SovereignAnalytics.standardize_data(df)
             price = df["Close"].iloc[-1]
-            chg = (price / df["Close"].iloc[-2] - 1) * 100
-            cols[i].metric(name, f"{price:,.2f}", f"{chg:+.2f}%")
+            change = (df["Close"].iloc[-1] / df["Close"].iloc[-2] - 1) * 100
+            cols[i].metric(name, f"{price:,.2f}", f"{change:+.2f}%")
         except:
             cols[i].metric(name, "N/A", "—")
 
     st.divider()
 
-# =========================================================
-# METHODOLOGY MODULE
-# =========================================================
-def render_methodology():
-    st.header("🔬 Institutional Research Methodology")
+# ----------------------------------------------------------
 
-    t1, t2, t3 = st.tabs([
-        "Stochastic Modeling",
-        "Neural Decomposition",
-        "Risk Architecture"
-    ])
-
-    with t1:
-        st.subheader("Geometric Brownian Motion")
-        st.latex(r"dS_t = \mu S_t dt + \sigma S_t dW_t")
-        st.write("Used for Monte Carlo pricing, VaR and tail risk.")
-
-    with t2:
-        st.subheader("Prophet Additive Decomposition")
-        st.latex(r"y(t)=g(t)+s(t)+h(t)+\epsilon_t")
-
-    with t3:
-        st.subheader("Risk Stack")
-        st.write("""
-        • Sharpe / Sortino  
-        • Max Drawdown  
-        • Parametric & Conditional VaR  
-        • Distribution Shape (Skew / Kurtosis)
-        """)
-
-# =========================================================
-# EQUITY INTELLIGENCE MODULE
-# =========================================================
 def render_equity_intel():
-    st.header("📈 Equity Intelligence Terminal")
+    st.header("📈 Equity Intelligence Engine")
 
     c1, c2 = st.columns([3,1])
-    with c1:
-        ticker = st.text_input("Ticker:", "NVDA").upper()
-    with c2:
-        period = st.selectbox("Lookback:", ["1y","2y","5y","max"])
+    ticker = c1.text_input("Ticker", "NVDA").upper()
+    period = c2.selectbox("Lookback", ["1y","2y","5y","max"])
 
     if st.button("Run Institutional Analysis"):
-        df = yf.download(ticker, period=period, progress=False)
-        df = SovereignAnalytics.standardize(df)
+        with st.spinner("Analyzing Capital Dynamics..."):
+            data = yf.download(ticker, period=period, progress=False)
+            data = SovereignAnalytics.standardize_data(data)
 
-        prices = df["Close"]
-        rets = SovereignAnalytics.returns(prices)
-        metrics = SovereignAnalytics.risk_metrics(rets)
+            prices = data["Close"].dropna()
+            returns = prices.pct_change().dropna()
 
-        cols = st.columns(len(metrics))
-        for i, (k,v) in enumerate(metrics.items()):
-            cols[i].metric(k, f"{v:.2f}")
+            metrics = SovereignAnalytics.compute_risk_ratios(returns)
 
-        fig = px.line(prices, template="plotly_dark")
-        fig.update_traces(line_color="#FFD700", line_width=3)
-        st.plotly_chart(fig, use_container_width=True)
+            k1,k2,k3,k4 = st.columns(4)
+            k1.metric("Sharpe", f"{metrics['Sharpe']:.2f}")
+            k2.metric("Sortino", f"{metrics['Sortino']:.2f}")
+            k3.metric("Max DD", f"{metrics['MDD']:.2f}%")
+            k4.metric("VaR 95%", f"{metrics['VaR']:.2f}%")
 
-# =========================================================
-# AI FORECASTING — PROPHET (LAZY SAFE)
-# =========================================================
+            fig = px.line(prices, title=f"{ticker} Price Dynamics", template="plotly_dark")
+            fig.update_traces(line_color="#FFD700", line_width=3)
+            st.plotly_chart(fig, use_container_width=True)
+
+# ----------------------------------------------------------
+
 def render_ai_forecasting():
-    st.header("🔮 Neural Predictive Engine")
+    st.header("🔮 Neural Forecasting Engine")
 
-    asset = st.text_input("Forecast Asset:", "BTC-USD").upper()
+    if not PROPHET_AVAILABLE:
+        st.error("Prophet is unavailable in this environment.")
+        st.code(PROPHET_ERROR)
+        st.info("Run locally with Python 3.10 + pinned NumPy to enable forecasting.")
+        return
 
-    if st.button("Generate Forecast"):
-        try:
-            from prophet import Prophet
-            from prophet.plot import plot_components_plotly
-        except Exception as e:
-            st.error("Prophet not available in this environment.")
-            st.code(str(e))
-            return
+    asset = st.text_input("Forecast Asset", "BTC-USD")
 
-        df = yf.download(asset, period="3y", progress=False).reset_index()
-        df = df[["Date","Close"]].dropna()
-        df.columns = ["ds","y"]
+    if st.button("Generate 90-Day Forecast"):
+        with st.spinner("Training probabilistic neural model..."):
+            raw = yf.download(asset, period="3y", progress=False).reset_index()
+            df = pd.DataFrame({
+                "ds": pd.to_datetime(raw["Date"]),
+                "y": raw["Close"]
+            }).dropna()
 
-        model = Prophet(
-            daily_seasonality=True,
-            yearly_seasonality=True,
-            changepoint_prior_scale=0.05
-        )
-        model.fit(df)
+            model = Prophet(
+                daily_seasonality=True,
+                yearly_seasonality=True,
+                changepoint_prior_scale=0.05
+            )
+            model.fit(df)
 
-        future = model.make_future_dataframe(periods=90)
-        forecast = model.predict(future)
+            future = model.make_future_dataframe(periods=90)
+            forecast = model.predict(future)
 
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=df["ds"], y=df["y"], name="History"))
-        fig.add_trace(go.Scatter(x=forecast["ds"], y=forecast["yhat"], name="Forecast"))
-        fig.add_trace(go.Scatter(
-            x=forecast["ds"],
-            y=forecast["yhat_upper"],
-            fill=None,
-            mode="lines",
-            line_color="rgba(255,215,0,0.2)"
-        ))
-        fig.add_trace(go.Scatter(
-            x=forecast["ds"],
-            y=forecast["yhat_lower"],
-            fill="tonexty",
-            mode="lines",
-            line_color="rgba(255,215,0,0.2)"
-        ))
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=df["ds"], y=df["y"], name="Historical", line=dict(color="#00F2FF")))
+            fig.add_trace(go.Scatter(x=forecast["ds"], y=forecast["yhat"], name="Forecast", line=dict(color="#FFD700", dash="dash")))
+            fig.add_trace(go.Scatter(x=forecast["ds"], y=forecast["yhat_upper"], line=dict(width=0), showlegend=False))
+            fig.add_trace(go.Scatter(
+                x=forecast["ds"],
+                y=forecast["yhat_lower"],
+                fill="tonexty",
+                fillcolor="rgba(255,215,0,0.2)",
+                line=dict(width=0),
+                showlegend=False
+            ))
 
-        fig.update_layout(template="plotly_dark")
-        st.plotly_chart(fig, use_container_width=True)
-        st.plotly_chart(plot_components_plotly(model, forecast), use_container_width=True)
+            fig.update_layout(template="plotly_dark", title="Neural Price Projection")
+            st.plotly_chart(fig, use_container_width=True)
 
-# =========================================================
-# WEALTH MANAGEMENT MODULE
-# =========================================================
+            st.plotly_chart(plot_components_plotly(model, forecast), use_container_width=True)
+
+# ----------------------------------------------------------
+
 def render_wealth_advisor():
-    st.header("💳 Behavioral Wealth Intelligence")
+    st.header("💳 Behavioral Wealth Advisor")
 
-    file = st.file_uploader("Upload Transactions CSV", type=["csv"])
-
-    if file:
-        df = pd.read_csv(file)
-    else:
-        df = pd.DataFrame([
-            {"Description":"Salary","Amount":12000,"Category":"Income"},
-            {"Description":"Rent","Amount":-3200,"Category":"Fixed"},
-            {"Description":"Equities","Amount":-3500,"Category":"Wealth"},
-            {"Description":"Crypto","Amount":-800,"Category":"Wealth"},
-            {"Description":"Lifestyle","Amount":-1100,"Category":"Wants"},
-        ])
+    df = pd.DataFrame([
+        {"Category": "Income", "Amount": 10500},
+        {"Category": "Fixed", "Amount": -3000},
+        {"Category": "Wealth", "Amount": -2800},
+        {"Category": "Wants", "Amount": -900},
+        {"Category": "Fixed", "Amount": -500},
+        {"Category": "Wealth", "Amount": -600},
+    ])
 
     df = st.data_editor(df, num_rows="dynamic", use_container_width=True)
-
     df["Amount"] = pd.to_numeric(df["Amount"], errors="coerce").fillna(0)
 
-    out = df[df["Amount"] < 0].copy()
-    out["Abs"] = out["Amount"].abs()
+    outflows = df[df["Amount"] < 0].copy()
+    outflows["Abs"] = outflows["Amount"].abs()
 
-    if not out.empty:
-        fig = px.pie(
-            out,
-            values="Abs",
-            names="Category",
-            hole=0.6,
-            template="plotly_dark"
-        )
-        st.plotly_chart(fig, use_container_width=True)
+    fig = px.pie(
+        outflows,
+        values="Abs",
+        names="Category",
+        hole=0.6,
+        template="plotly_dark"
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
-# =========================================================
-# MASTER CONTROLLER
-# =========================================================
+# ==========================================================
+# 5. MASTER ROUTER
+# ==========================================================
+
 def main():
     render_global_pulse()
 
-    st.sidebar.title("💎 Sovereign Terminal")
+    st.sidebar.title("💎 Sovereign Control")
     nav = st.sidebar.radio(
         "Navigation",
-        [
-            "Global Pulse",
-            "Theoretical Framework",
-            "Equity Intelligence",
-            "Neural Forecasting",
-            "Wealth Management Advisor"
-        ]
+        ["Equity Intelligence", "Neural Forecasting", "Wealth Advisor"]
     )
 
-    if nav == "Theoretical Framework":
-        render_methodology()
-    elif nav == "Equity Intelligence":
+    if nav == "Equity Intelligence":
         render_equity_intel()
     elif nav == "Neural Forecasting":
         render_ai_forecasting()
-    elif nav == "Wealth Management Advisor":
+    elif nav == "Wealth Advisor":
         render_wealth_advisor()
 
     st.sidebar.divider()
-    st.sidebar.caption(
-        f"Session Start: {st.session_state.boot_time.strftime('%Y-%m-%d %H:%M:%S')}"
-    )
-    st.sidebar.markdown("**Engine Build:** `v12.0.4-Magnum`")
+    st.sidebar.caption(f"Runtime Sync: {datetime.now().strftime('%H:%M:%S')}")
 
-# =========================================================
-# ENTRY POINT
-# =========================================================
 if __name__ == "__main__":
     main()
+
