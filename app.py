@@ -7,8 +7,8 @@ from prophet import Prophet
 import numpy as np
 from datetime import datetime
 
-# --- 1. SYSTEM CONFIGURATION ---
-# This ensures the app starts with a clean layout and no unnecessary redirects
+# --- 1. CLEAN START CONFIGURATION ---
+# Setting this first prevents many layout-related redirect issues
 st.set_page_config(page_title="Diana Finance AI | Institutional Research", layout="wide")
 
 # --- 2. CORE QUANTITATIVE FUNCTIONS ---
@@ -50,23 +50,27 @@ def main():
     # Header Section
     st.title("🏛️ Diana Finance: AI Research Platform")
     st.markdown("_Master's Thesis Project | Quantitative Finance & Behavioral Economics_")
-    st.markdown("---")
-
+    
     # Global Live Metrics
     metrics = get_global_metrics()
     m_cols = st.columns(len(metrics))
     for i, (name, val) in enumerate(metrics.items()):
         m_cols[i].metric(name, f"{val[0]:,.2f}", f"{val[1]:.2f}%")
+    st.markdown("---")
 
     # --- SIDEBAR NAVIGATION (Anti-Redirect Loop Method) ---
+    # We use a simple selectbox. This avoids changing the URL with '#' or '?' 
     st.sidebar.title("🔬 Research Methodology")
     
-    # Using a selectbox is the most stable way to handle navigation without URL loops
-    page = st.sidebar.selectbox("Module Selector:", 
-                                ["🏠 Home & Documentation", 
-                                 "📈 Equity Intelligence", 
-                                 "🔮 AI Prediction", 
-                                 "💳 Personal Finance AI"])
+    page = st.sidebar.selectbox(
+        "Module Selector:", 
+        ["🏠 Home & Documentation", 
+         "📈 Equity Intelligence", 
+         "🔮 AI Prediction", 
+         "💳 Personal Finance AI"],
+        index=0,
+        key="main_nav" # Unique key to prevent state loss
+    )
 
     # --- MODULE 1: HOME & DOCUMENTATION ---
     if page == "🏠 Home & Documentation":
@@ -79,6 +83,7 @@ def main():
             **1. Prophet Engine:**
             Utilizes a **decomposable time-series model** to analyze: **Trend**, **Seasonality**, and **Holidays**.
             """)
+            
             st.markdown("""
             **2. Stochastic Risk Modeling:**
             Implemented via **Monte Carlo methods** based on the **Geometric Brownian Motion (GBM)** framework:
@@ -91,7 +96,6 @@ def main():
             st.write("""
             - **Universe:** Global Equities (via Yahoo Finance).
             - **Initial Capital:** $10,000 USD.
-            - **Risk-Free Rate:** 2% (Standard Proxy).
             - **Execution:** Zero slippage simulation based on daily closing prices.
             """)
             
@@ -99,15 +103,15 @@ def main():
             st.subheader("Innovation: AI vs. Traditional Analysis")
             compare_data = {
                 "Feature": ["Data Processing", "Trend Detection", "Risk Model", "Integration"],
-                "Traditional (Fundamental)": ["Manual Spreadsheets", "Linear/Static", "Variance-only", "Siloed"],
-                "Diana AI (Quantitative)": ["Automated API", "Non-Linear ML", "Stochastic GBM", "Holistic View"]
+                "Traditional": ["Manual Spreadsheets", "Linear/Static", "Variance-only", "Siloed"],
+                "Diana AI": ["Automated API", "Non-Linear ML", "Stochastic GBM", "Holistic View"]
             }
             st.table(compare_data)
 
     # --- MODULE 2: EQUITY INTELLIGENCE ---
     elif page == "📈 Equity Intelligence":
         st.header("🔍 Backtesting & Alpha Generation")
-        ticker = st.text_input("Enter Ticker (e.g., NVDA, AAPL):", "NVDA").upper()
+        ticker = st.text_input("Enter Ticker:", "NVDA").upper()
         if st.button("Run Quantitative Analysis"):
             with st.spinner("Processing Market Data..."):
                 stock_raw = yf.download(ticker, period="1y")['Close']
@@ -127,8 +131,8 @@ def main():
                     sim_results = run_monte_carlo(stock_data)
                     fig_mc = px.line(sim_results, template="plotly_dark", title="Potential 30-Day Paths")
                     fig_mc.update_layout(showlegend=False)
+                    
                     st.plotly_chart(fig_mc, use_container_width=True)
-                else: st.error("Ticker not found.")
 
     # --- MODULE 3: AI PREDICTION ---
     elif page == "🔮 AI Prediction":
@@ -143,39 +147,19 @@ def main():
                 m = Prophet(daily_seasonality=True); m.fit(df_p)
                 future = m.make_future_dataframe(periods=30)
                 forecast = m.predict(future)
-                fig_f = px.line(forecast, x='ds', y='yhat', title=f"30-Day Predictive Trend: {symbol}", template="plotly_dark")
+                fig_f = px.line(forecast, x='ds', y='yhat', title=f"30-Day Predictive Trend", template="plotly_dark")
                 st.plotly_chart(fig_f, use_container_width=True)
 
     # --- MODULE 4: PERSONAL FINANCE AI ---
     elif page == "💳 Personal Finance AI":
         st.header("💳 Intelligent Wealth Management")
-        uploaded = st.file_uploader("Upload CSV (Columns: Description, Amount)", type="csv")
+        uploaded = st.file_uploader("Upload CSV", type="csv")
         if uploaded:
             df_u = pd.read_csv(uploaded)
             if 'Description' in df_u.columns and 'Amount' in df_u.columns:
-                def categorize(d):
-                    d = str(d).lower()
-                    if any(x in d for x in ['shop', 'amazon']): return 'Discretionary'
-                    if any(x in d for x in ['rent', 'bill']): return 'Fixed Obligations'
-                    return 'Lifestyle/Other'
-                df_u['Category'] = df_u['Description'].apply(categorize)
                 df_u['Amount'] = pd.to_numeric(df_u['Amount']).abs()
-                
-                c1, c2 = st.columns([2, 1])
-                with c1:
-                    fig = px.pie(df_u, values='Amount', names='Category', hole=0.5, template="plotly_dark")
-                    st.plotly_chart(fig, use_container_width=True)
-                with c2:
-                    st.subheader("Top Expenses")
-                    st.table(df_u.sort_values(by='Amount', ascending=False).head(5)[['Description', 'Amount']])
-                
-                st.divider()
-                st.subheader("🤖 AI Behavioral Insight")
-                total = df_u['Amount'].sum()
-                dis_pct = (df_u[df_u['Category'] == 'Discretionary']['Amount'].sum() / total) * 100 if total > 0 else 0
-                if dis_pct > 25:
-                    st.warning(f"Optimization Alert: Discretionary spending at {dis_pct:.1f}%. Consider reallocation.")
-                else: st.success("Strategic Balance: Spending behavior is optimized.")
+                fig = px.pie(df_u, values='Amount', names='Description', hole=0.5, template="plotly_dark")
+                st.plotly_chart(fig, use_container_width=True)
 
     st.sidebar.divider()
     st.sidebar.caption(f"Last updated: {datetime.now().strftime('%Y-%m-%d')}")
