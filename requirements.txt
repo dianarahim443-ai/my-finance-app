@@ -3,6 +3,4 @@ pandas
 yfinance
 plotly
 prophet
-seaborn
-matplotlib
-scipy
+numpy
